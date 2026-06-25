@@ -5,6 +5,8 @@ import { cn } from "@/lib/utils"
 export type ProductTileData = {
   id: string
   image: string
+  /** appearance (colour) id shown as the tile preview */
+  appearanceId: string
   price: string
   priceValue: number
   brand: string

@@ -13,7 +13,7 @@ export default function BeforeAfterCompare() {
     const el = containerRef.current
     if (!el) return
     const width = el.getBoundingClientRect().width || 1
-    const d = (24 / width) * 100 // ~24px expressed as a percentage
+    const d = (48 / width) * 100 // ~48px expressed as a percentage
     const ease = (t: number) => (t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2)
     // [elapsedMs, posValue]
     const kf: [number, number][] = [
@@ -78,7 +78,7 @@ export default function BeforeAfterCompare() {
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(pos)}
-      className="relative aspect-[1203/1019] h-[340px] max-h-full max-w-full cursor-ew-resize touch-none overflow-hidden rounded-2xl select-none"
+      className="relative aspect-[1063/1229] h-[340px] max-h-full max-w-full cursor-ew-resize touch-none overflow-hidden rounded-2xl select-none"
     >
       {/* Embroidery — clipped to the right of the handle only, so it never
           shows through any transparent areas of the graphic on the left. */}

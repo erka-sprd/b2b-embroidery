@@ -142,7 +142,7 @@ export default function Designer() {
   const graphicElementRefs = useRef<Record<string, HTMLElement>>({})
 
   // Print technique (only relevant for embroidery-suitable products).
-  const [printTechnique, setPrintTechnique] = useState<"standard" | "embroidery">("standard")
+  const [printTechnique, setPrintTechnique] = useState<"standard" | "embroidery">("embroidery")
   const [printTechniqueOpen, setPrintTechniqueOpen] = useState(false)
   const [previewLoading, setPreviewLoading] = useState(false)
   // Flattened design (text + graphics combined) for the print-technique close-up,
@@ -363,13 +363,14 @@ export default function Designer() {
     return () => document.removeEventListener("click", onDocClick)
   }, [])
 
-  // Reset texts and graphics when switching products.
+  // Reset texts and graphics when switching products. The print technique is
+  // intentionally NOT reset — embroidery is the default, and once the user
+  // switches to standard print that choice persists across products.
   useEffect(() => {
     setTextElements([])
     setEditingTextId(null)
     setGraphicElements([])
     setSelectedGraphicId(null)
-    setPrintTechnique("standard")
     setPrintTechniqueOpen(false)
   }, [productData])
 
@@ -624,12 +625,13 @@ export default function Designer() {
 
   useEffect(() => {
     if (!productData) return
-    const idx = productData.appearances.findIndex(
-      a => a.id === productData.defaultAppearanceId
-    )
+    // Prefer the colour previewed in the products drawer; fall back to default.
+    const wanted = selectedProduct?.appearanceId
+    let idx = wanted ? productData.appearances.findIndex(a => a.id === wanted) : -1
+    if (idx < 0) idx = productData.appearances.findIndex(a => a.id === productData.defaultAppearanceId)
     setActiveColorIndex(idx >= 0 ? idx : 0)
     setActiveViewId(productData.defaultViewId)
-  }, [productData])
+  }, [productData, selectedProduct?.appearanceId])
 
   const appearances = productData?.appearances ?? []
   const sizes = useMemo(
@@ -1609,6 +1611,18 @@ export default function Designer() {
                 })}
               </div>
             )}
+            {/* Model picture of the current product — portrait, above the print
+                selection, same border radius as the print-selection button. */}
+            {productData?.modelImageFront && (
+              <div className="absolute right-6 bottom-[72px] z-20 aspect-[3/4] w-24 overflow-hidden rounded-[8px] bg-white shadow-xs">
+                <img
+                  src={productData.modelImageFront}
+                  alt={`${productData.name} on model`}
+                  className="h-full w-full object-cover"
+                />
+              </div>
+            )}
+
             {/* Print technique dropdown — only for embroidery-suitable products. */}
             {productData?.embroidery && (
               <button

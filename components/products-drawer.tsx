@@ -5,7 +5,7 @@ import { Drawer } from "vaul"
 import ProductTile from "@/components/product-tile"
 import { allTiles } from "@/lib/tiles"
 
-export type SelectedProduct = { id: string; src: string; name: string }
+export type SelectedProduct = { id: string; src: string; name: string; appearanceId: string }
 
 type ProductsDrawerProps = {
   open: boolean
@@ -38,7 +38,7 @@ export default function ProductsDrawer({ open, onOpenChange, onSelect }: Product
                   key={t.id}
                   type="button"
                   onClick={() => {
-                    onSelect({ id: t.id, src: t.image, name: t.name })
+                    onSelect({ id: t.id, src: t.image, name: t.name, appearanceId: t.appearanceId })
                     onOpenChange(false)
                   }}
                   className="cursor-pointer text-left"
