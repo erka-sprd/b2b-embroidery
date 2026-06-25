@@ -164,6 +164,9 @@ export default function Designer() {
   const [graphicElements, setGraphicElements] = useState<GraphicElement[]>([])
   const [selectedGraphicId, setSelectedGraphicId] = useState<string | null>(null)
   const graphicElementRefs = useRef<Record<string, HTMLElement>>({})
+  // True while actively dragging/resizing an element — the on-canvas embroidery
+  // preview drops to the live, flat element during manipulation, then returns.
+  const [isManipulating, setIsManipulating] = useState(false)
 
   // Print technique (only relevant for embroidery-suitable products).
   const [printTechnique, setPrintTechnique] = useState<"standard" | "embroidery">("embroidery")
@@ -403,6 +406,7 @@ export default function Designer() {
     const onMove = (e: MouseEvent) => {
       const rs = resizeStateRef.current
       if (rs) {
+        setIsManipulating(true)
         if (rs.initialDist > 0) {
           const newDist = Math.hypot(e.clientX - rs.oppX, e.clientY - rs.oppY)
           const scale = newDist / rs.initialDist
@@ -463,7 +467,10 @@ export default function Designer() {
       const paRect = pa.getBoundingClientRect()
       const dx = e.clientX - ds.startX
       const dy = e.clientY - ds.startY
-      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) ds.moved = true
+      if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+        ds.moved = true
+        setIsManipulating(true)
+      }
       const newXPct = ds.elX + (dx / paRect.width) * 100
       const newYPct = ds.elY + (dy / paRect.height) * 100
       const SNAP_THRESHOLD_PX = 8
@@ -500,6 +507,7 @@ export default function Designer() {
       }
     }
     const onUp = () => {
+      setIsManipulating(false)
       if (resizeStateRef.current) {
         resizeStateRef.current = null
         return
@@ -706,6 +714,19 @@ export default function Designer() {
     printAreaOverlay && printAreaPxSize.width > 0
       ? (printAreaPxSize.width * 100) / printAreaOverlay.width
       : 0
+  // Signature of the current print area's design — drives re-flattening for the
+  // on-canvas embroidery preview when text/graphics change.
+  const designSignature = JSON.stringify({
+    t: visibleTextElements.map(t => [t.x, t.y, t.content, t.fontSize, t.fontFamily, t.color]),
+    g: visibleGraphicElements.map(g => [g.x, g.y, g.width, g.height, g.src]),
+  })
+  // The stitched render is mounted whenever embroidery is the chosen technique
+  // and a render exists; its opacity cross-fades with the flat elements beneath
+  // so flat <-> stitched is smooth. It fades out only while actively
+  // manipulating or text-editing (revealing the live, editable element).
+  const embroideryReady =
+    printTechnique === "embroidery" && !!embroideryRenderedUrl && !!designBbox
+  const canvasEmbroideryVisible = embroideryReady && !isManipulating && !editingTextId
 
   // Embroidery clamps the design to a max area; warn when that shrinks it by >20%.
   const embroiderySizeWarning = (() => {
@@ -718,16 +739,26 @@ export default function Designer() {
   // Flatten the current print area's text + graphics into a single PNG when the
   // print-technique modal opens (combines text and graphic like dock-change).
   useEffect(() => {
-    if (!printTechniqueOpen) {
+    // Flatten when the technique modal is open OR embroidery is the live
+    // technique (so the stitched preview can render on the canvas).
+    const wantPreview = printTechniqueOpen || printTechnique === "embroidery"
+    if (!wantPreview) {
       setDesignDataUrl(null)
       setEmbroideryRenderedUrl(null)
       setDesignBbox(null)
       setPreviewLoading(false)
       return
     }
+    // On the canvas, don't regenerate while an element is being edited/dragged —
+    // the live editable element is shown instead of the stitched overlay.
+    if (!printTechniqueOpen && (isManipulating || editingTextId)) {
+      return
+    }
     let cancelled = false
-    setEmbroideryRenderedUrl(null)
-    setPreviewLoading(true)
+    if (printTechniqueOpen) {
+      setEmbroideryRenderedUrl(null)
+      setPreviewLoading(true)
+    }
     const loadingTimer = setTimeout(() => {
       if (!cancelled) setPreviewLoading(false)
     }, 900)
@@ -827,7 +858,15 @@ export default function Designer() {
       clearTimeout(loadingTimer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [printTechniqueOpen])
+  }, [
+    printTechniqueOpen,
+    printTechnique,
+    designSignature,
+    printAreaPxSize.width,
+    printAreaPxSize.height,
+    isManipulating,
+    editingTextId,
+  ])
 
   // When switching views (print areas), clear any stale selection / editing
   // that points to an element that doesn't live in the new print area.
@@ -1603,10 +1642,46 @@ export default function Designer() {
                         })}
                     </div>
                   ))}
+                  {/* Stitched embroidery preview, overlaid on the design's
+                      footprint. Pointer-events pass through so clicking an
+                      element beneath selects it and reveals the editable version. */}
+                  {embroideryReady && designBbox && embroideryRenderedUrl && (
+                    <img
+                      src={embroideryRenderedUrl}
+                      alt=""
+                      draggable={false}
+                      className={`pointer-events-none absolute select-none transition-opacity duration-200 ease-out ${
+                        canvasEmbroideryVisible ? "opacity-100" : "opacity-0"
+                      }`}
+                      style={{
+                        left: `${designBbox.x * 100}%`,
+                        top: `${designBbox.y * 100}%`,
+                        width: `${designBbox.w * 100}%`,
+                        height: `${designBbox.h * 100}%`,
+                      }}
+                    />
+                  )}
                 </div>
               )}
             </div>
             </div>
+
+            {/* Off-screen embroidery renderer — turns the flattened design into
+                the stitched look whenever embroidery is the chosen technique. */}
+            {printTechnique === "embroidery" && designDataUrl && (
+              <EmbroideryPreview
+                src={designDataUrl}
+                maxSize={500}
+                onRendered={setEmbroideryRenderedUrl}
+                style={{
+                  position: "absolute",
+                  opacity: 0,
+                  pointerEvents: "none",
+                  width: 1,
+                  height: 1,
+                }}
+              />
+            )}
 
             {/* Zoom control — vertical, bottom-left of the canvas area. Plus on
                 top, minus at the bottom; the WedgeSlider is rotated upright. */}
@@ -1848,20 +1923,6 @@ export default function Designer() {
                         transformOrigin: `${printAreaOverlay.left + printAreaOverlay.width / 2}% ${printAreaOverlay.top + printAreaOverlay.height / 2}%`,
                       }}
                     />
-                    {printTechnique === "embroidery" && (
-                      <EmbroideryPreview
-                        src={designDataUrl}
-                        maxSize={500}
-                        onRendered={setEmbroideryRenderedUrl}
-                        style={{
-                          position: "absolute",
-                          opacity: 0,
-                          pointerEvents: "none",
-                          width: 1,
-                          height: 1,
-                        }}
-                      />
-                    )}
                     {(() => {
                       const url =
                         printTechnique === "embroidery" ? embroideryRenderedUrl : designDataUrl
