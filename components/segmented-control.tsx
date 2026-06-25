@@ -6,11 +6,23 @@ type SegmentedControlProps = {
   items: string[]
   active: number
   onChange: (index: number) => void
+  stuck?: boolean
 }
 
-export default function SegmentedControl({ items, active, onChange }: SegmentedControlProps) {
+export default function SegmentedControl({
+  items,
+  active,
+  onChange,
+  stuck = false,
+}: SegmentedControlProps) {
   return (
-    <div className="inline-flex flex-wrap items-center gap-1 bg-neutral-100 p-2">
+    <div
+      className={cn(
+        "inline-flex flex-wrap items-center gap-1 p-2 transition-colors duration-200",
+        // kit has no neutral-150 (jumps 100 #f4f4f4 → 200 #dedede); use the midpoint
+        stuck ? "bg-[#e9e9e9]" : "bg-neutral-100"
+      )}
+    >
       {items.map((label, i) => (
         <button
           key={label}

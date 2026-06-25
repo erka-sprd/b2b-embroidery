@@ -1,7 +1,9 @@
 "use client"
 
 import { Drawer } from "vaul"
-import { PRODUCTS } from "@/lib/products-data"
+
+import ProductTile from "@/components/product-tile"
+import { allTiles } from "@/lib/tiles"
 
 export type SelectedProduct = { id: string; src: string; name: string }
 
@@ -11,18 +13,12 @@ type ProductsDrawerProps = {
   onSelect: (product: SelectedProduct) => void
 }
 
-const PRODUCT_TILES: SelectedProduct[] = PRODUCTS.map(p => ({
-  id: p.id,
-  name: p.name,
-  src: p.preview,
-}))
-
 export default function ProductsDrawer({ open, onOpenChange, onSelect }: ProductsDrawerProps) {
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
       <Drawer.Portal>
         <Drawer.Overlay className="fixed inset-0 z-[9998] bg-black/40" />
-        <Drawer.Content className="fixed bottom-0 left-0 right-0 z-[9999] flex h-[calc(100dvh-32px)] flex-col rounded-t-2xl bg-white outline-none">
+        <Drawer.Content className="fixed right-0 bottom-0 left-0 z-[9999] flex h-[calc(100dvh-32px)] flex-col rounded-t-2xl bg-white outline-none">
           <Drawer.Title className="sr-only">All products</Drawer.Title>
           <div className="flex items-center justify-between px-6 pt-5 pb-4">
             <span className="font-display text-[16px] font-medium text-black">All products</span>
@@ -36,23 +32,18 @@ export default function ProductsDrawer({ open, onOpenChange, onSelect }: Product
             </button>
           </div>
           <div className="flex-1 overflow-y-auto px-6 pb-6">
-            <div className="grid grid-cols-5 gap-4">
-              {PRODUCT_TILES.map(({ id, name, src }) => (
+            <div className="grid grid-cols-5 gap-x-4 gap-y-6">
+              {allTiles.map(t => (
                 <button
-                  key={id}
+                  key={t.id}
                   type="button"
                   onClick={() => {
-                    onSelect({ id, src, name })
+                    onSelect({ id: t.id, src: t.image, name: t.name })
                     onOpenChange(false)
                   }}
                   className="cursor-pointer text-left"
                 >
-                  <div className="flex aspect-[3/4] w-full items-center justify-center overflow-hidden bg-[#f5f5f5]">
-                    <img src={src} alt={name} className="block h-full w-full object-contain" />
-                  </div>
-                  <div className="overflow-hidden text-ellipsis whitespace-nowrap pt-1.5 text-[12px] font-medium leading-tight text-[#6a6a6a]">
-                    {name}
-                  </div>
+                  <ProductTile t={t} />
                 </button>
               ))}
             </div>

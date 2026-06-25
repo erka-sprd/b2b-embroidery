@@ -934,8 +934,10 @@ export default function Designer() {
   const discountTierHint = (() => {
     const tiers: { min: number; pct: number }[] = [
       { min: 5, pct: 10 },
-      { min: 20, pct: 15 },
-      { min: 50, pct: 50 },
+      { min: 20, pct: 20 },
+      { min: 40, pct: 30 },
+      { min: 60, pct: 40 },
+      { min: 100, pct: 50 },
     ]
     const nextTier = tiers.find(t => totalSelected < t.min)
     if (nextTier) return `From ${nextTier.min} items -${nextTier.pct}% reduction`
@@ -997,9 +999,11 @@ export default function Designer() {
 
   // Calculate discount percentage based on volume
   const getDiscountPercentage = (qty: number): number => {
-    if (qty >= 50) return 0.50 // 50% discount
-    if (qty >= 20) return 0.15 // 15% discount
-    if (qty >= 5) return 0.10 // 10% discount
+    if (qty >= 100) return 0.5 // 50% discount
+    if (qty >= 60) return 0.4 // 40% discount
+    if (qty >= 40) return 0.3 // 30% discount
+    if (qty >= 20) return 0.2 // 20% discount
+    if (qty >= 5) return 0.1 // 10% discount
     return 0 // No discount
   }
 

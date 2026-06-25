@@ -3,6 +3,9 @@
 import { useEffect, useRef, useState } from "react"
 
 import GradientButton from "@/components/gradient-button"
+import CustomerReviews from "@/components/customer-reviews"
+import FaqSection from "@/components/faq-section"
+import PriceCalculator from "@/components/price-calculator"
 import ProductCarousel, { type ProductTileData } from "@/components/product-carousel"
 import SegmentedControl from "@/components/segmented-control"
 import { cn } from "@/lib/utils"
@@ -11,7 +14,7 @@ const TABS = [
   { label: "Our products", id: "our-products" },
   { label: "Get sample", id: "get-sample" },
   { label: "Calculate price", id: "calculate-price" },
-  { label: "See examples", id: "see-examples" },
+  { label: "Customer reviews", id: "customer-reviews" },
   { label: "FAQ", id: "faq" },
 ]
 
@@ -82,7 +85,12 @@ export default function ProductsSection({ tiles }: { tiles: ProductTileData[] })
         )}
       >
         <div className="flex justify-center px-[90px]">
-          <SegmentedControl items={TABS.map(t => t.label)} active={active} onChange={goTo} />
+          <SegmentedControl
+            items={TABS.map(t => t.label)}
+            active={active}
+            onChange={goTo}
+            stuck={stuck}
+          />
         </div>
       </div>
 
@@ -92,7 +100,7 @@ export default function ProductsSection({ tiles }: { tiles: ProductTileData[] })
       </section>
 
       {/* Get sample — image with magnifier + copy */}
-      <section id="get-sample" className="scroll-mt-[110px] px-[90px] py-16">
+      <section id="get-sample" className="mt-9 scroll-mt-[110px] bg-neutral-100 px-[90px] py-16">
         <div className="grid grid-cols-1 items-center gap-14 lg:grid-cols-2">
           <div className="relative aspect-square w-full overflow-hidden bg-neutral-100">
             <img
@@ -104,7 +112,7 @@ export default function ProductsSection({ tiles }: { tiles: ProductTileData[] })
           <div>
             <p className="font-display text-xl font-[900] text-black">Order 20 or more products</p>
             <h2 className="font-display mt-1 text-3xl font-[900] tracking-tight text-black sm:text-4xl">
-              SEE A SAMPLE
+              to SEE A SAMPLE
             </h2>
             <p className="mt-5 max-w-xl text-base leading-relaxed text-neutral-700">
               We'll send you a close-up photo of your design embroidered on the product you order, so you can see the quality and details before before we continue with your order.
@@ -117,18 +125,18 @@ export default function ProductsSection({ tiles }: { tiles: ProductTileData[] })
       </section>
 
       {/* Placeholder sections for the remaining tabs */}
-      <section id="calculate-price" className="scroll-mt-[110px] px-[90px] py-16">
-        <h2 className="font-display text-2xl font-[900] text-black">CALCULATE PRICE</h2>
-        <p className="mt-3 text-neutral-500">Coming soon.</p>
+      <section id="calculate-price" className="mt-9 scroll-mt-[110px] px-[90px] py-16">
+        <PriceCalculator tiles={tiles} />
       </section>
-      <section id="see-examples" className="scroll-mt-[110px] px-[90px] py-16">
-        <h2 className="font-display text-2xl font-[900] text-black">EXAMPLES</h2>
-        <p className="mt-3 text-neutral-500">Coming soon.</p>
+      <section id="customer-reviews" className="mt-9 scroll-mt-[110px] bg-neutral-100 px-[90px] py-16">
+        <h2 className="font-display text-2xl font-[900] text-black">CUSTOMER REVIEWS</h2>
+        <div className="mt-8">
+          <CustomerReviews />
+        </div>
       </section>
       {/* min-h-screen so the last tab can scroll its top under the sticky bar */}
-      <section id="faq" className="min-h-screen scroll-mt-[110px] px-[90px] py-16">
-        <h2 className="font-display text-2xl font-[900] text-black">FAQ</h2>
-        <p className="mt-3 text-neutral-500">Coming soon.</p>
+      <section id="faq" className="mt-9 min-h-screen scroll-mt-[110px] px-[90px] py-16">
+        <FaqSection />
       </section>
     </div>
   )
