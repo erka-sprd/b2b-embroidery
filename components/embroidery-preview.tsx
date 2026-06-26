@@ -8,7 +8,7 @@ import React, { useEffect, useRef } from "react"
 
 const SETTINGS = {
   quantStep: 1,
-  stitchDensity: 3,
+  stitchDensity: 5,
   stitchLength: 20,
   stitchVisibility: 280,
   edgeCleanliness: 0,
@@ -309,6 +309,10 @@ interface Props {
 
 export default function EmbroideryPreview({ src, maxSize = 500, style, className, onRendered }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
+  // Keep the latest callback in a ref so the (expensive) render effect doesn't
+  // re-run just because the parent passed a new inline onRendered each render.
+  const onRenderedRef = useRef(onRendered)
+  onRenderedRef.current = onRendered
 
   useEffect(() => {
     if (!src) return
@@ -339,10 +343,10 @@ export default function EmbroideryPreview({ src, maxSize = 500, style, className
 
       const result = renderEmbroidery(quantized, w, h)
       ctx.drawImage(result, 0, 0)
-      onRendered?.(canvas.toDataURL("image/png"))
+      onRenderedRef.current?.(canvas.toDataURL("image/png"))
     }
     img.src = src
-  }, [src, maxSize, onRendered])
+  }, [src, maxSize])
 
   return <canvas ref={canvasRef} style={style} className={className} />
 }

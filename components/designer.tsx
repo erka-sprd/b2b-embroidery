@@ -39,6 +39,11 @@ type DesignerPanel = "graphics" | "uploads" | "ai"
 
 const DEFAULT_PRODUCT_ID = "2116" // Stanley/Stella Unisex Organic Polo Shirt PREPSTER
 
+// Monotonic unique id — Date.now() alone collides when two elements are created
+// in the same millisecond (e.g. uploading/placing several at once).
+let uidCounter = 0
+const uid = (prefix: string) => `${prefix}-${Date.now().toString(36)}-${(uidCounter++).toString(36)}`
+
 // Treat a product color as "dark" only when very close to black.
 // Returns true only for near-black colors (e.g., #1A1A1A, #2F3031), so non-dark
 // hues (red, blue, etc.) get black text and white products get black text.
@@ -228,7 +233,7 @@ export default function Designer() {
 
   const addTextElement = () => {
     if (!currentPrintAreaId) return
-    const id = `text-${Date.now()}`
+    const id = uid("text")
     const content = "Your text here"
     let fontSize = 32
     let x = 25
@@ -244,7 +249,10 @@ export default function Designer() {
         ctx.font = '100px "Inter", sans-serif'
         const widthAt100 = ctx.measureText(content).width
         if (widthAt100 > 0) {
-          const targetWidthPx = printAreaPxSize.width / 2
+          // Polo front: place new elements on the left chest (smaller) instead
+          // of centred in the large front print area.
+          const leftChest = productId === "2116" && currentPrintAreaId === "6322"
+          const targetWidthPx = printAreaPxSize.width * (leftChest ? 0.26 : 0.5)
           const computedFontSize = (targetWidthPx / widthAt100) * 100
           fontSize = Math.max(
             14,
@@ -253,8 +261,13 @@ export default function Designer() {
           const actualWidthPx = (widthAt100 / 100) * fontSize
           const elWidthPct = (actualWidthPx / printAreaPxSize.width) * 100
           const elHeightPct = (fontSize / printAreaPxSize.height) * 100
-          x = (100 - elWidthPct) / 2
-          y = (100 - elHeightPct) / 2
+          if (leftChest) {
+            x = Math.max(0, Math.min(100 - elWidthPct, 76 - elWidthPct / 2))
+            y = Math.max(0, Math.min(100 - elHeightPct, 15 - elHeightPct / 2))
+          } else {
+            x = (100 - elWidthPct) / 2
+            y = (100 - elHeightPct) / 2
+          }
         }
       }
     }
@@ -292,7 +305,7 @@ export default function Designer() {
     if (!selectedTextId) return
     const src = textElements.find(t => t.id === selectedTextId)
     if (!src) return
-    const newId = `text-${Date.now()}`
+    const newId = uid("text")
     const newEl: TextElement = {
       ...src,
       id: newId,
@@ -313,15 +326,31 @@ export default function Designer() {
 
   // Adds a graphic into the current print area, centred and sized to ~40% of the
   // print-area width while preserving the image's aspect ratio.
-  const addGraphicElement = (src: string) => {
+  const addGraphicElement = (
+    src: string,
+    opts?: { centerX?: number; centerY?: number; widthPct?: number }
+  ) => {
     if (!currentPrintAreaId) return
     const printAreaId = currentPrintAreaId
-    const id = `graphic-${Date.now()}`
+    const id = uid("graphic")
+    // Polo front: default new elements to the left chest unless an explicit
+    // placement is passed.
+    const placement =
+      opts ??
+      (productId === "2116" && currentPrintAreaId === "6322"
+        ? { centerX: 76, centerY: 15, widthPct: 26 }
+        : undefined)
+    const clampPos = (v: number, size: number) => Math.max(0, Math.min(100 - size, v))
     const place = (width: number, height: number) => {
-      setGraphicElements(prev => [
-        ...prev,
-        { id, printAreaId, src, x: (100 - width) / 2, y: (100 - height) / 2, width, height },
-      ])
+      const x =
+        placement?.centerX != null
+          ? clampPos(placement.centerX - width / 2, width)
+          : (100 - width) / 2
+      const y =
+        placement?.centerY != null
+          ? clampPos(placement.centerY - height / 2, height)
+          : (100 - height) / 2
+      setGraphicElements(prev => [...prev, { id, printAreaId, src, x, y, width, height }])
       setActivePanel(null)
       // Defer so the same click's document handler doesn't clear the new selection.
       setTimeout(() => {
@@ -329,7 +358,7 @@ export default function Designer() {
         setSelectedTextId(null)
       }, 0)
     }
-    const targetWidthPct = 40
+    const targetWidthPct = placement?.widthPct ?? 40
     if (typeof window !== "undefined") {
       const img = new window.Image()
       img.onload = () => {
@@ -865,7 +894,9 @@ export default function Designer() {
       // Render the design at a higher resolution than the on-screen print area so
       // the close-up preview stays crisp and large (the editor px size is tiny).
       const RENDER_TARGET = 900
-      const scale = Math.max(1, RENDER_TARGET / Math.max(baseW, baseH))
+      // Cap the canvas at RENDER_TARGET (no max(1,…)) so a zoomed-in print area
+      // doesn't blow the measure pass up to thousands of pixels.
+      const scale = RENDER_TARGET / Math.max(baseW, baseH)
       const W = Math.round(baseW * scale)
       const H = Math.round(baseH * scale)
       try {
@@ -955,7 +986,7 @@ export default function Designer() {
         // design lands on few pixels and the stitch effect looks rough; here the
         // design's long edge is normalised to ~TARGET_HI px so the embroidery
         // renderer always gets a crisp, well-sized source.
-        const TARGET_HI = 768
+        const TARGET_HI = 620
         const designLongPx = Math.max(fw * baseW, fh * baseH)
         const scaleHi = Math.min(40, Math.max(1, TARGET_HI / Math.max(designLongPx, 1)))
         const WF = baseW * scaleHi
@@ -1008,13 +1039,14 @@ export default function Designer() {
       clearTimeout(loadingTimer)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // NOTE: printAreaPxSize is intentionally NOT a dependency — the embroidery
+    // overlay is positioned by fractions and scales with the print-area box via
+    // CSS, so it must not re-flatten on zoom (that was the zoom lag).
   }, [
     printTechniqueOpen,
     printTechnique,
     designSignature,
     embroiderySignature,
-    printAreaPxSize.width,
-    printAreaPxSize.height,
     isManipulating,
     editingTextId,
   ])
@@ -1834,7 +1866,7 @@ export default function Designer() {
             {printTechnique === "embroidery" && embroiderySrc && (
               <EmbroideryPreview
                 src={embroiderySrc}
-                maxSize={768}
+                maxSize={620}
                 onRendered={url => {
                   setEmbroideryRenderedUrl(url)
                   setEmbroideryRenderStale(false)

@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 
 import { cn } from "@/lib/utils"
 
@@ -174,6 +174,13 @@ export function UploadPanel({ onPlaceImage }: { onPlaceImage: (url: string) => v
     // Keep the latest placement callback without re-creating addFiles.
     const onPlaceRef = useRef(onPlaceImage)
     onPlaceRef.current = onPlaceImage
+    // Mirror images in a ref (to read count at completion) and track which
+    // uploads have already been auto-placed, so placement happens exactly once.
+    const imagesRef = useRef<UploadEntry[]>([])
+    useEffect(() => {
+        imagesRef.current = images
+    }, [images])
+    const placedRef = useRef<Set<string>>(new Set())
 
     const addFiles = useCallback((files: File[]) => {
         const accepted = files.slice(0, MAX_FILES_LIMIT)
@@ -203,28 +210,28 @@ export function UploadPanel({ onPlaceImage }: { onPlaceImage: (url: string) => v
             }
             const url = URL.createObjectURL(file)
             setImages(prev => [...prev, { id, name: file.name, url, status: "uploading", progress: 0 }])
-            // Simulate an upload so the progress bar + checkmark behave like the real one.
+            // Simulate an upload. Progress lives in a local so the state updater
+            // stays pure; completion side-effects run once, outside the updater.
+            let prog = 0
             const iv = setInterval(() => {
-                setImages(prev => {
-                    const updated = prev.map(im => {
-                        if (im.id !== id) return im
-                        const next = im.progress + 14 + Math.random() * 18
-                        return next >= 100
-                            ? { ...im, progress: 100, status: "uploaded" as UploadStatus }
-                            : { ...im, progress: next }
-                    })
-                    const justDone = updated.find(im => im.id === id)
-                    if (justDone?.status === "uploaded") {
-                        clearInterval(iv)
-                        // Hide the success tick after a moment (like create-omat).
-                        setTimeout(() => {
-                            setImages(p => p.map(im => (im.id === id ? { ...im, progress: 0 } : im)))
-                        }, 2000)
-                        // If this is the only design uploaded, drop it on the canvas.
-                        if (updated.length === 1) setTimeout(() => onPlaceRef.current(url), 0)
-                    }
-                    return updated
-                })
+                prog += 14 + Math.random() * 18
+                if (prog < 100) {
+                    setImages(prev => prev.map(im => (im.id === id ? { ...im, progress: prog } : im)))
+                    return
+                }
+                clearInterval(iv)
+                setImages(prev =>
+                    prev.map(im => (im.id === id ? { ...im, progress: 100, status: "uploaded" } : im))
+                )
+                // Hide the success tick after a moment (like create-omat).
+                setTimeout(() => {
+                    setImages(prev => prev.map(im => (im.id === id ? { ...im, progress: 0 } : im)))
+                }, 2000)
+                // Auto-place exactly once, only when this is the single design.
+                if (!placedRef.current.has(id) && imagesRef.current.length === 1) {
+                    placedRef.current.add(id)
+                    onPlaceRef.current(url)
+                }
             }, 90)
         })
     }, [])
