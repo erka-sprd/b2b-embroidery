@@ -101,14 +101,15 @@ export default function Designer() {
     offsetY: number
   } | null>(null)
   const pinchEndTimerRef = useRef<number | null>(null)
-  // Trackpad pinch-to-zoom: macOS sends wheel events with ctrlKey set during a
-  // pinch gesture. Adjust the zoom and prevent the browser's page zoom. Needs a
+  // Zoom via wheel: a trackpad pinch arrives as a wheel event with ctrlKey set,
+  // and the same path covers mouse Ctrl/⌘ + scroll. Plain wheel is left alone so
+  // it still pans the canvas. Prevent the browser's page zoom. Needs a
   // non-passive listener so preventDefault is honoured.
   useEffect(() => {
     const el = canvasScrollRef.current
     if (!el) return
     const onWheel = (e: WheelEvent) => {
-      if (!e.ctrlKey) return
+      if (!e.ctrlKey && !e.metaKey) return
       e.preventDefault()
       // Capture the content point under the cursor so the centering effect can
       // keep it fixed across the zoom (stable; no group-centre feedback loop).
