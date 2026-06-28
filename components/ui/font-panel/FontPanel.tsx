@@ -28,7 +28,7 @@ export function FontPanel({ open, onClose, currentFontFamily, onChange }: FontPa
   return (
     <div
       data-font-panel="true"
-      className={`absolute z-10 inset-y-[2px] left-[2px] w-[275px] rounded-[12px] bg-white shadow-[32px_0px_50px_0px_rgba(0,0,0,0.05)] flex flex-col transition-transform duration-300 ease-out ${
+      className={`absolute z-10 inset-y-[4px] left-[4px] w-[275px] rounded-[12px] bg-white shadow-[32px_0px_50px_0px_rgba(0,0,0,0.05)] flex flex-col transition-transform duration-300 ease-out ${
         open ? "translate-x-0" : "-translate-x-[calc(100%+100px)]"
       }`}
     >
