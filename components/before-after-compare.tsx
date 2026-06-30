@@ -69,16 +69,12 @@ export default function BeforeAfterCompare() {
   return (
     <div
       ref={containerRef}
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={stopDragging}
-      onPointerCancel={stopDragging}
       role="slider"
       aria-label="Compare graphic and embroidery"
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(pos)}
-      className="relative aspect-[1063/1229] h-[340px] max-h-full max-w-full cursor-ew-resize touch-none overflow-hidden rounded-2xl select-none"
+      className="relative aspect-[1063/1229] h-[340px] max-h-full max-w-full touch-none overflow-hidden rounded-2xl select-none"
     >
       {/* Embroidery — clipped to the right of the handle only, so it never
           shows through any transparent areas of the graphic on the left. */}
@@ -96,6 +92,17 @@ export default function BeforeAfterCompare() {
         draggable={false}
         className="pointer-events-none absolute inset-0 h-full w-full object-cover"
         style={{ clipPath: `inset(0 ${100 - pos}% 0 0)` }}
+      />
+
+      {/* Drag zone — only the divider + handle are interactive (cursor + drag),
+          so the rest of the image isn't grabbable. */}
+      <div
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={stopDragging}
+        onPointerCancel={stopDragging}
+        className="absolute top-0 bottom-0 z-10 w-11 -translate-x-1/2 cursor-ew-resize touch-none"
+        style={{ left: `${pos}%` }}
       />
 
       {/* Divider line */}

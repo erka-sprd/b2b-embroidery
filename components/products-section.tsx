@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils"
 const TABS = [
   { label: "Our products", id: "our-products" },
   { label: "Get sample", id: "get-sample" },
-  { label: "Calculate price", id: "calculate-price" },
+  { label: "Calculate price & delivery", id: "calculate-price" },
   { label: "Customer reviews", id: "customer-reviews" },
   { label: "FAQ", id: "faq" },
 ]

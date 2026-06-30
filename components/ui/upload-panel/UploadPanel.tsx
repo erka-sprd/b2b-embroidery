@@ -166,7 +166,17 @@ function UploadCard({
     )
 }
 
-export function UploadPanel({ onPlaceImage }: { onPlaceImage: (url: string) => void }) {
+export function UploadPanel({
+    onPlaceImage,
+    pending,
+    onPendingConsumed,
+}: {
+    onPlaceImage: (url: string) => void
+    // A logo handed in from the landing page (data URL + name). Processed exactly
+    // like a normal upload so it appears in the panel and auto-places.
+    pending?: { dataUrl: string; name: string } | null
+    onPendingConsumed?: () => void
+}) {
     const inputRef = useRef<HTMLInputElement | null>(null)
     const [images, setImages] = useState<UploadEntry[]>([])
     const [dragActive, setDragActive] = useState(false)
@@ -235,6 +245,21 @@ export function UploadPanel({ onPlaceImage }: { onPlaceImage: (url: string) => v
             }, 90)
         })
     }, [])
+
+    // Register a logo handed in from the landing page: add it to the list as an
+    // already-uploaded image (the designer places it on the canvas itself, so no
+    // auto-place here). It stays in the panel for re-adding later.
+    const pendingDoneRef = useRef(false)
+    useEffect(() => {
+        if (!pending || pendingDoneRef.current) return
+        pendingDoneRef.current = true
+        const id = `${pending.name}-${performance.now()}`
+        setImages(prev => [
+            ...prev,
+            { id, name: pending.name, url: pending.dataUrl, status: "uploaded", progress: 0 },
+        ])
+        onPendingConsumed?.()
+    }, [pending, onPendingConsumed])
 
     const removeImage = (id: string) =>
         setImages(prev => {

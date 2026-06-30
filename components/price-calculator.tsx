@@ -10,7 +10,7 @@ import MultiProductSelectDrawer, {
 import type { ProductTileData } from "@/components/product-tile"
 import QuantitySelector from "@/components/quantity-selector"
 import VolumeDiscountDialog from "@/components/volume-discount-dialog"
-import { SHIPPING_OPTIONS, type ShippingId } from "@/lib/shipping"
+import { SHIPPING_OPTIONS, deliveryDateRange, type ShippingId } from "@/lib/shipping"
 import { cn } from "@/lib/utils"
 
 const eur = (n: number) => n.toFixed(2).replace(".", ",") + " €"
@@ -69,15 +69,15 @@ export default function PriceCalculator({ tiles }: { tiles: ProductTileData[] })
   return (
     <div className={cn("mx-auto w-full", empty ? "max-w-[500px]" : "max-w-[1200px]")}>
       <h2 className={cn("font-display text-2xl font-[900] text-black", empty && "text-center")}>
-        CALCULATE PRICE
+        CALCULATE PRICE & DELIVERY
       </h2>
 
-      <div className="mt-6 border-2 border-neutral-200 p-6">
+      <div className="mt-6 border-2 border-black p-6">
         <div className={cn("flex items-center", empty ? "justify-center" : "justify-between")}>
         <button
           type="button"
           onClick={() => setDrawerOpen(true)}
-          className="flex w-fit cursor-pointer items-center gap-4 border-2 border-dashed border-neutral-300 px-6 py-5 text-black transition-colors hover:border-neutral-500"
+          className="marching-border flex w-fit cursor-pointer items-center gap-4 px-6 py-5 text-black"
         >
           <svg viewBox="0 0 20 20" fill="none" className="size-10 shrink-0" aria-hidden>
             <path
@@ -184,7 +184,7 @@ export default function PriceCalculator({ tiles }: { tiles: ProductTileData[] })
           {totalPieces > 0 && (
             <div className="flex items-center justify-between py-2">
               <span className="font-semibold text-black">
-                Your design embroidered (on {totalPieces} {totalPieces === 1 ? "piece" : "pieces"})
+                Embroidery (on {totalPieces} {totalPieces === 1 ? "piece" : "pieces"})
               </span>
               <span className="text-base font-bold whitespace-nowrap text-black">
                 {eur(embroideryCost)}
@@ -192,80 +192,107 @@ export default function PriceCalculator({ tiles }: { tiles: ProductTileData[] })
             </div>
           )}
 
-          {totalPieces > 0 && (
-            <div className="flex items-center justify-between py-2">
-              <Popover.Root open={shippingOpen} onOpenChange={setShippingOpen}>
-                <Popover.Trigger asChild>
-                  <button
-                    type="button"
-                    className="flex cursor-pointer items-center gap-1 font-semibold text-black"
-                  >
-                    {shippingOption.label} shipping
+          {/* Black band: shipping row + total, full-bleed to the card edges */}
+          <div className="-mx-6 -mb-4 mt-4 bg-black px-6 py-2">
+            {totalPieces > 0 && (
+              <div className="flex items-center justify-between py-2">
+                <Popover.Root open={shippingOpen} onOpenChange={setShippingOpen}>
+                  <Popover.Trigger asChild>
+                    <button
+                      type="button"
+                      className="flex cursor-pointer items-center gap-1 rounded-full border-2 border-white/40 px-2.5 py-1 font-semibold text-white hover:bg-white/10"
+                    >
+                      {shippingOption.label} shipping
+                      <svg
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        className={cn(
+                          "size-4 transition-transform duration-200",
+                          shippingOpen && "rotate-180"
+                        )}
+                        aria-hidden
+                      >
+                        <path
+                          d="M6 9l6 6 6-6"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        />
+                      </svg>
+                    </button>
+                  </Popover.Trigger>
+                  <Popover.Portal>
+                    <Popover.Content
+                      align="start"
+                      sideOffset={8}
+                      className="z-[100] w-72 border border-neutral-200 bg-white shadow-lg outline-none"
+                    >
+                      {SHIPPING_OPTIONS.map(o => (
+                        <button
+                          key={o.id}
+                          type="button"
+                          onClick={() => {
+                            setShippingId(o.id)
+                            setShippingOpen(false)
+                          }}
+                          className={cn(
+                            "flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-neutral-50",
+                            o.id === shippingId && "bg-neutral-100"
+                          )}
+                        >
+                          <span>
+                            <span className={cn("block font-semibold", o.color)}>{o.label}</span>
+                            <span className="block text-sm text-neutral-500">
+                              {o.minDays}–{o.maxDays} days
+                            </span>
+                          </span>
+                          <span className="font-bold whitespace-nowrap text-black">
+                            {eur(o.price)}
+                          </span>
+                        </button>
+                      ))}
+                    </Popover.Content>
+                  </Popover.Portal>
+                </Popover.Root>
+                <div className="flex items-center gap-1">
+                  <span className="inline-flex items-center gap-1.5 text-sm font-semibold whitespace-nowrap text-neutral-300">
                     <svg
                       viewBox="0 0 24 24"
+                      width="20"
+                      height="20"
                       fill="none"
-                      className={cn(
-                        "size-4 transition-transform duration-200",
-                        shippingOpen && "rotate-180"
-                      )}
-                      aria-hidden
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      aria-hidden="true"
                     >
-                      <path
-                        d="M6 9l6 6 6-6"
-                        stroke="currentColor"
-                        strokeWidth="2"
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                      />
+                      <path d="M10 17h4V5H2v12h3" />
+                      <path d="M20 17h2v-3.34a4 4 0 0 0-1.17-2.83L19 9h-5v8h1" />
+                      <circle cx="7.5" cy="17.5" r="2.5" />
+                      <circle cx="17.5" cy="17.5" r="2.5" />
                     </svg>
-                  </button>
-                </Popover.Trigger>
-                <Popover.Portal>
-                  <Popover.Content
-                    align="start"
-                    sideOffset={8}
-                    className="z-[100] w-72 border border-neutral-200 bg-white shadow-lg outline-none"
-                  >
-                    {SHIPPING_OPTIONS.map(o => (
-                      <button
-                        key={o.id}
-                        type="button"
-                        onClick={() => {
-                          setShippingId(o.id)
-                          setShippingOpen(false)
-                        }}
-                        className={cn(
-                          "flex w-full cursor-pointer items-center justify-between gap-3 px-4 py-3 text-left transition-colors hover:bg-neutral-50",
-                          o.id === shippingId && "bg-neutral-100"
-                        )}
-                      >
-                        <span>
-                          <span className={cn("block font-semibold", o.color)}>{o.label}</span>
-                          <span className="block text-sm text-neutral-500">
-                            {o.minDays}–{o.maxDays} days
-                          </span>
-                        </span>
-                        <span className="font-bold whitespace-nowrap text-black">{eur(o.price)}</span>
-                      </button>
-                    ))}
-                  </Popover.Content>
-                </Popover.Portal>
-              </Popover.Root>
-              <span className="text-base font-bold whitespace-nowrap text-black">
-                {eur(shippingCost)}
-              </span>
-            </div>
-          )}
+                    Arrives on {deliveryDateRange(shippingOption.minDays, shippingOption.maxDays)}
+                  </span>
+                  <span className="size-0.5 shrink-0 rounded-full bg-neutral-300 mx-4" aria-hidden />
+                  <span className="text-base font-bold whitespace-nowrap text-white">
+                    {eur(shippingCost)}
+                  </span>
+                </div>
+              </div>
+            )}
 
-          <div className="flex items-center justify-between py-2">
-            <span className="text-lg font-bold text-black">Total</span>
-            <div className="text-right">
-              <span className="font-display text-3xl font-[900] text-black">
-                {eur(finalTotal)}
-              </span>
-              {rows.length === 1 && totalPieces > 1 && (
-                <p className="mt-1 text-md text-neutral-600">({eur(perPiece)} per piece)</p>
-              )}
+            <div className="flex items-center justify-between py-2">
+              <span className="text-lg font-bold text-white">Total</span>
+              <div className="text-right">
+                <span className="font-display text-3xl font-[900] text-white">
+                  {eur(finalTotal)}
+                </span>
+                {rows.length === 1 && totalPieces > 1 && (
+                  <p className="mt-1 text-md text-neutral-300">({eur(perPiece)} per piece)</p>
+                )}
+              </div>
             </div>
           </div>
         </div>

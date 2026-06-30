@@ -913,6 +913,37 @@ export default function Designer() {
   const visibleGraphicElements = currentPrintAreaId
     ? graphicElements.filter(g => g.printAreaId === currentPrintAreaId)
     : []
+
+  // Pending upload from the hero "Upload your logo" button: a data URL stashed in
+  // sessionStorage. Once the print area is ready, open the uploads panel and hand
+  // it to the panel so it's processed exactly like a normal upload (appears in the
+  // panel + auto-placed with correct aspect). Also skip the welcome popup.
+  const [pendingPanelUpload, setPendingPanelUpload] = useState<{
+    dataUrl: string
+    name: string
+  } | null>(null)
+  const pendingUploadPlacedRef = useRef(false)
+  useEffect(() => {
+    if (pendingUploadPlacedRef.current) return
+    // Wait until the print area is measured so the graphic places with the right
+    // aspect ratio (otherwise it falls back to a square -> stretched).
+    if (!currentPrintAreaId || printAreaPxSize.width <= 0) return
+    let dataUrl: string | null = null
+    try {
+      dataUrl = sessionStorage.getItem("pendingUpload")
+    } catch {}
+    if (!dataUrl) return
+    pendingUploadPlacedRef.current = true
+    try {
+      sessionStorage.removeItem("pendingUpload")
+    } catch {}
+    setWelcomeOpen(false)
+    // Place it on the canvas directly...
+    addGraphicElement(dataUrl)
+    // ...and register it in the upload panel list so it can be re-added later.
+    setPendingPanelUpload({ dataUrl, name: "your-logo" })
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentPrintAreaId, printAreaPxSize])
   // The live canvas content's on-screen square size (px) — fontSize is relative
   // to this, so the view-thumbnail previews use it to scale the design down.
   const liveCanvasContentSize =
@@ -2018,11 +2049,72 @@ export default function Designer() {
                       src={embroideryRenderedUrl}
                       alt=""
                       draggable={false}
-                      // Purely visual: pointer-events pass straight through to the
-                      // real (hidden) element wrappers underneath, so select / drag
-                      // / delete work exactly like standard print — no fragile
-                      // reverse hit-testing of a flattened bitmap.
-                      className="pointer-events-none absolute select-none"
+                      // The stitched render covers the real elements, so a click on
+                      // it must select the element under (or nearest to) the pointer
+                      // and start its drag — mouseup then commits the selection.
+                      // data-graphic-element keeps the doc-click handler from
+                      // deselecting when clicking the design. This makes keyboard
+                      // delete reliable for embroidery objects.
+                      data-graphic-element="true"
+                      onMouseDown={e => {
+                        const x = e.clientX
+                        const y = e.clientY
+                        const within = (node?: HTMLElement | null) => {
+                          if (!node) return false
+                          const r = node.getBoundingClientRect()
+                          return x >= r.left && x <= r.right && y >= r.top && y <= r.bottom
+                        }
+                        for (let i = visibleGraphicElements.length - 1; i >= 0; i--) {
+                          const g = visibleGraphicElements[i]
+                          if (within(graphicElementRefs.current[g.id])) {
+                            startGraphicDrag(e, g)
+                            return
+                          }
+                        }
+                        for (let i = visibleTextElements.length - 1; i >= 0; i--) {
+                          const t = visibleTextElements[i]
+                          if (within(textElementRefs.current[t.id])) {
+                            startTextDrag(e, t)
+                            return
+                          }
+                        }
+                        // No direct hit (clicked stitch bleed or the gap between two
+                        // objects): select the nearest element so a click on the
+                        // design always selects something.
+                        let bestKind: "graphic" | "text" | null = null
+                        let bestId: string | null = null
+                        let bestDist = Infinity
+                        const consider = (
+                          kind: "graphic" | "text",
+                          id: string,
+                          node?: HTMLElement | null
+                        ) => {
+                          if (!node) return
+                          const r = node.getBoundingClientRect()
+                          const cx = (r.left + r.right) / 2
+                          const cy = (r.top + r.bottom) / 2
+                          const d = Math.hypot(x - cx, y - cy)
+                          if (d < bestDist) {
+                            bestDist = d
+                            bestKind = kind
+                            bestId = id
+                          }
+                        }
+                        visibleGraphicElements.forEach(g =>
+                          consider("graphic", g.id, graphicElementRefs.current[g.id])
+                        )
+                        visibleTextElements.forEach(t =>
+                          consider("text", t.id, textElementRefs.current[t.id])
+                        )
+                        if (bestKind === "graphic") {
+                          const g = visibleGraphicElements.find(x => x.id === bestId)
+                          if (g) startGraphicDrag(e, g)
+                        } else if (bestKind === "text") {
+                          const t = visibleTextElements.find(x => x.id === bestId)
+                          if (t) startTextDrag(e, t)
+                        }
+                      }}
+                      className="absolute cursor-move select-none"
                       style={{
                         left: `${designBbox.x * 100}%`,
                         top: `${designBbox.y * 100}%`,
@@ -2474,7 +2566,13 @@ export default function Designer() {
                 <h2 className="font-display text-[18px] font-medium text-black px-6 pt-6 pb-4 capitalize flex-shrink-0">
                   {panel === "ai" ? "AI Image" : panel}
                 </h2>
-                {panel === "uploads" && <UploadPanel onPlaceImage={addGraphicElement} />}
+                {panel === "uploads" && (
+                  <UploadPanel
+                    onPlaceImage={addGraphicElement}
+                    pending={pendingPanelUpload}
+                    onPendingConsumed={() => setPendingPanelUpload(null)}
+                  />
+                )}
                 {panel === "graphics" && (
                   <div className="flex-1 overflow-y-auto">
                     <div className="grid grid-cols-3 gap-0">
