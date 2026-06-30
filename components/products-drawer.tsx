@@ -1,9 +1,9 @@
 "use client"
 
 import { Drawer } from "vaul"
+import type { ProductTileData } from "product-catalog-client"
 
 import ProductTile from "@/components/product-tile"
-import { allTiles } from "@/lib/tiles"
 
 export type SelectedProduct = { id: string; src: string; name: string; appearanceId: string }
 
@@ -11,9 +11,10 @@ type ProductsDrawerProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSelect: (product: SelectedProduct) => void
+  tiles: ProductTileData[]
 }
 
-export default function ProductsDrawer({ open, onOpenChange, onSelect }: ProductsDrawerProps) {
+export default function ProductsDrawer({ open, onOpenChange, onSelect, tiles }: ProductsDrawerProps) {
   return (
     <Drawer.Root open={open} onOpenChange={onOpenChange}>
       <Drawer.Portal>
@@ -33,7 +34,7 @@ export default function ProductsDrawer({ open, onOpenChange, onSelect }: Product
           </div>
           <div className="flex-1 overflow-y-auto px-6 pb-6">
             <div className="grid grid-cols-5 gap-x-4 gap-y-6">
-              {allTiles.map(t => (
+              {tiles.map(t => (
                 <button
                   key={t.id}
                   type="button"

@@ -1,10 +1,14 @@
+import { buildTiles } from "product-catalog-client"
+
 import BeforeAfterCompare from "@/components/before-after-compare"
 import EmbLandingHeader from "@/components/emb-landing-header"
 import HeroUploadButton from "@/components/hero-upload-button"
 import ProductsSection from "@/components/products-section"
-import { embroideryTiles } from "@/lib/tiles"
+import { img, loadCatalog } from "@/lib/catalog"
 
-export default function EmbLandingPage() {
+export default async function EmbLandingPage() {
+  const { products } = await loadCatalog()
+  const { embroideryTiles } = buildTiles(products)
   return (
     <main className="min-h-screen overflow-x-clip bg-white">
       <EmbLandingHeader />
@@ -19,13 +23,13 @@ export default function EmbLandingPage() {
         <div className="pointer-events-none absolute inset-y-0 left-1/2 z-0 w-full max-w-[1600px] -translate-x-1/2">
           {/* tote — nature — 2x larger */}
           <img
-            src="/products/56/404/1.webp"
+            src={img("/products/56/404/1.webp")}
             alt=""
             className="hero-float-a absolute top-[2%] right-[16%] w-[20rem] rotate-[6deg] blur-[3px]"
           />
           {/* polo — soft ecru */}
           <img
-            src="/products/2116/947/1.webp"
+            src={img("/products/2116/947/1.webp")}
             alt=""
             className="hero-float-c absolute top-[16%] left-[10%] w-76 rotate-[6deg] blur-[2px]"
           />
@@ -47,7 +51,7 @@ GET YOUR DESIGN EMBROIDERED
             isn't clipped — it hangs past the hero's bottom edge. */}
         <div className="pointer-events-none absolute top-0 left-1/2 z-20 h-[560px] w-full max-w-[1600px] -translate-x-1/2">
           <img
-            src="/products/15/10/1.webp"
+            src={img("/products/15/10/1.webp")}
             alt=""
             className="hero-float-b absolute right-[3%] bottom-[-16%] w-100 -rotate-[-32deg]"
           />

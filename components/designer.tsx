@@ -4,9 +4,17 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react"
 import { createPortal } from "react-dom"
 import * as Popover from "@radix-ui/react-popover"
 import { Basket, type BasketItem } from "@/components/basket"
-import EmbroideryPreview from "@/components/embroidery-preview"
+import {
+  EmbroideryPreview,
+  buildOutOfStockMap,
+  buildTiles,
+  getPrintAreaOverlay,
+  getProductType,
+  type ProductTypeData,
+  type StaticProduct,
+} from "product-catalog-client"
+import { loadCatalog } from "@/lib/catalog"
 import ProductsDrawer, { type SelectedProduct } from "@/components/products-drawer"
-import { allTiles } from "@/lib/tiles"
 import SiteHeader from "@/components/site-header"
 import { IconsScroller } from "@/components/ui/icons-scroller"
 import { EditorBar } from "@/components/ui/editor-bar"
@@ -20,12 +28,6 @@ import {
 import { FontPanel } from "@/components/ui/font-panel/FontPanel"
 import { TextColorPanel } from "@/components/ui/text-color-panel/TextColorPanel"
 import { UploadPanel } from "@/components/ui/upload-panel/UploadPanel"
-import {
-  buildOutOfStockMap,
-  getPrintAreaOverlay,
-  getProductType,
-  type ProductTypeData,
-} from "@/lib/spreadshirt"
 
 /**
  * Changes made (minimal):
@@ -78,9 +80,19 @@ function clampEmbroideryBbox(b: DesignBbox): DesignBbox {
 }
 
 export default function Designer() {
+  // Product catalogue is fetched once from the central host at runtime.
+  const [products, setProducts] = useState<StaticProduct[]>([])
+  useEffect(() => {
+    loadCatalog().then(c => setProducts(c.products))
+  }, [])
+  const allTiles = useMemo(() => buildTiles(products).allTiles, [products])
+
   const [selectedProduct, setSelectedProduct] = useState<SelectedProduct | null>(null)
   const productId = selectedProduct?.id ?? DEFAULT_PRODUCT_ID
-  const productData: ProductTypeData | null = useMemo(() => getProductType(productId), [productId])
+  const productData: ProductTypeData | null = useMemo(
+    () => getProductType(products, productId),
+    [products, productId]
+  )
   const [activeColorIndex, setActiveColorIndex] = useState(0)
   // Canvas zoom (1 = fit, up to 3x) controlled by the slider at the bottom-left.
   // When zoomed in, the canvas area scrolls so different parts of the product
@@ -3313,6 +3325,7 @@ export default function Designer() {
         open={productsDrawerOpen}
         onOpenChange={setProductsDrawerOpen}
         onSelect={setSelectedProduct}
+        tiles={allTiles}
       />
 
     </>
