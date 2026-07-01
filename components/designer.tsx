@@ -1302,7 +1302,11 @@ export default function Designer() {
       ro.disconnect()
       window.removeEventListener("resize", update)
     }
-  }, [productId, activeViewId])
+    // `currentPrintAreaId` is included so this re-runs once the catalogue loads
+    // asynchronously and the print-area box actually mounts — otherwise the
+    // observer never attaches and printAreaPxSize stays 0 (no embroidery render).
+    // It's a stable string (unlike printAreaOverlay, a fresh object each render).
+  }, [productId, activeViewId, currentPrintAreaId])
   // Computes the largest font size at which `text` fits in `areaWidth × areaHeight`.
   const computeMaxFontSize = (text: string, areaWidth: number, areaHeight: number) => {
     if (areaWidth <= 0 || areaHeight <= 0) return 14
