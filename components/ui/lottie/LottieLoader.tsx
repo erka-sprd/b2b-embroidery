@@ -19,27 +19,38 @@ export default function LottieLoader({ size = 180, className }: LottieLoaderProp
     const container = ref.current
     if (!container) return
     let anim: ReturnType<typeof lottie.loadAnimation> | undefined
-    // Building this animation (27 layers, keyframe-heavy) is main-thread work.
-    // If it runs during the designer's initial mount + catalog parse it fights
-    // for the thread and the first frames drop ("laggy start"). Wait two paints
-    // so the heavy mount commits first, then build + play on a calmer thread.
-    let raf2 = 0
-    const raf1 = requestAnimationFrame(() => {
-      raf2 = requestAnimationFrame(() => {
+    const rafs: number[] = []
+    const queue = (fn: () => void) => rafs.push(requestAnimationFrame(fn))
+
+    // Building this mask/track-matte-heavy animation is main-thread work, and
+    // in Chrome the first *paint* of all those <mask>/<clipPath> nodes is the
+    // expensive part — if motion starts on that same frame, it stutters
+    // ("laggy start"). Firefox paints it more gracefully, so it's smooth there.
+    //
+    // So: (1) wait two paints so the designer's mount commits first, then
+    // (2) build with autoplay OFF and render a *static* frame 0, letting Chrome
+    // do its heavy first layout/paint while nothing is moving, then
+    // (3) start motion a couple frames later, on a settled tree — smooth in
+    // both browsers, and the SVG look Firefox handles well is unchanged.
+    queue(() =>
+      queue(() => {
         anim = lottie.loadAnimation({
           container,
           renderer: "svg",
           loop: true,
-          autoplay: true,
+          autoplay: false,
           animationData,
           // Build every layer up front so the first loop doesn't hitch.
           rendererSettings: { progressiveLoad: false },
         })
+        anim.addEventListener("DOMLoaded", () => {
+          anim?.goToAndStop(0, true) // force the costly first paint, static
+          queue(() => queue(() => anim?.play())) // then start motion, settled
+        })
       })
-    })
+    )
     return () => {
-      cancelAnimationFrame(raf1)
-      cancelAnimationFrame(raf2)
+      rafs.forEach(cancelAnimationFrame)
       anim?.destroy()
     }
   }, [])
