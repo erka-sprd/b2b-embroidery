@@ -14,7 +14,9 @@ export default function DesignerSkeleton() {
       <SiteHeader />
 
       <div className="flex min-h-0 flex-1 flex-col px-8 py-[16px]">
-        <div className="flex min-h-0 flex-1 items-stretch justify-center gap-2">
+        {/* Cap at the same max width as the real layout so the skeleton (esp.
+            the middle column) doesn't stretch past it on large screens. */}
+        <div className="flex min-h-0 w-full max-w-[1920px] flex-1 items-stretch justify-center gap-2">
           {/* left tools — top (Products), middle (4 tools), bottom (undo/redo) */}
           <div className="flex w-[100px] flex-shrink-0 flex-col items-center rounded-[12px] bg-[#F4F4F4] p-[6px] px-1.5">
             <div className="flex-shrink-0">
