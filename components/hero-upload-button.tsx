@@ -31,7 +31,7 @@ export default function HeroUploadButton() {
             <input
                 ref={inputRef}
                 type="file"
-                accept="image/svg+xml,image/png,image/jpeg"
+                accept="image/svg+xml,image/png,image/jpeg,image/webp"
                 className="hidden"
                 onChange={onFile}
             />

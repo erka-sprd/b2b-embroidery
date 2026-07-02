@@ -42,7 +42,7 @@ GET YOUR DESIGN EMBROIDERED
           </h1>
           <div className="flex flex-col items-center gap-2">
           <HeroUploadButton />
-          <p className="text-sm font-medium text-white/80">SVG, PNG or JPEG</p>
+          <p className="text-sm font-medium text-white/80">SVG, PNG, JPEG or WEBP</p>
           </div>
         </div>
         </section>

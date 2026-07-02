@@ -133,7 +133,7 @@ function UploadCard({
                         ? `Your file is ${Math.floor(image.sizeMB ?? 0)}MB. Maximum allowed size is ${
                               MAX_FILE_SIZE / (1024 * 1024)
                           }MB.`
-                        : "We don’t support this file type. Please upload PNG, JPG or SVG."}
+                        : "We don’t support this file type. Please upload PNG, JPG, WEBP or SVG."}
                 </p>
             )}
 
@@ -330,7 +330,7 @@ export function UploadPanel({
                                 Upload
                             </button>
                             <p className="text-sm leading-5 text-neutral-500">
-                                SVG, JPEG, PNG allowed
+                                SVG, JPEG, PNG, WEBP allowed
                             </p>
                         </div>
                     </div>
