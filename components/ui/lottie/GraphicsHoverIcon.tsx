@@ -22,10 +22,11 @@ export default function GraphicsHoverIcon({hovered, onReverseDone, className}: P
     const ref = useRef<HTMLDivElement>(null)
     const animRef = useRef<AnimationItem | null>(null)
     const dir = useRef(1)
+    const completed = useRef(false) // forward reached the end
     const doneRef = useRef(onReverseDone)
     doneRef.current = onReverseDone
 
-    // Load once; play forward on mount (we mount on hover-in).
+    // Load once (playback is driven by the hovered effect below).
     useEffect(() => {
         const container = ref.current
         if (!container) return
@@ -39,35 +40,31 @@ export default function GraphicsHoverIcon({hovered, onReverseDone, className}: P
         })
         animRef.current = anim
         anim.addEventListener("complete", () => {
-            // Reverse finished (reached frame 0) -> tell parent to show static.
-            if (dir.current === -1) doneRef.current?.()
+            if (dir.current === 1) completed.current = true // forward finished
+            else doneRef.current?.() // reverse reached the start
         })
-        dir.current = 1
-        anim.setDirection(1)
-        anim.goToAndPlay(0, true)
         return () => anim.destroy()
     }, [])
 
-    // Flip direction when hover state changes.
+    // Drive playback from hover state (also runs on mount, hovered = true).
     useEffect(() => {
         const anim = animRef.current
         if (!anim) return
         if (hovered) {
+            completed.current = false
             dir.current = 1
-            anim.setSpeed(1) // forward always at normal speed
             anim.setDirection(1)
-            anim.play()
+            anim.play() // forward from the current frame (0 on first hover)
         } else {
-            // Reverse-out, capped so it never takes longer than REVERSE_CAP:
-            // speed up only when the wind-back from the current frame would
-            // otherwise exceed the cap; short hovers reverse at normal speed.
-            const REVERSE_CAP = 0.5 // seconds
-            const fps = anim.frameRate || 60
-            const naturalSec = anim.currentFrame / fps
             dir.current = -1
-            anim.setSpeed(naturalSec > REVERSE_CAP ? naturalSec / REVERSE_CAP : 1)
             anim.setDirection(-1)
-            anim.play()
+            if (completed.current) {
+                // Fully played out -> reverse from the middle so the wind-back
+                // is shorter (about half the duration) at normal speed.
+                anim.goToAndPlay(anim.totalFrames / 2, true)
+            } else {
+                anim.play() // reverse from wherever the forward got to
+            }
         }
     }, [hovered])
 
