@@ -1637,6 +1637,9 @@ export default function Designer() {
   // Keeps the graphics Lottie mounted through hover-out so it can play in
   // reverse; cleared once that reverse finishes (then the static icon returns).
   const [gfxActive, setGfxActive] = useState(false)
+  // Same behaviour for the graphics button inside the onboarding popup.
+  const [obHovered, setObHovered] = useState<string | null>(null)
+  const [obGfxActive, setObGfxActive] = useState(false)
 
   useEffect(() => {
     const checkRightSectionHeight = () => {
@@ -3452,6 +3455,11 @@ export default function Designer() {
                   <button
                     key={a.id}
                     type="button"
+                    onMouseEnter={() => {
+                      setObHovered(a.id)
+                      if (a.id === "graphics") setObGfxActive(true)
+                    }}
+                    onMouseLeave={() => setObHovered(null)}
                     onClick={() => {
                       if (a.id === "text") {
                         openFromOnboarding(() => addTextElement())
@@ -3460,9 +3468,28 @@ export default function Designer() {
                       if (!("panel" in a)) return
                       openFromOnboarding(() => setActivePanel(a.panel))
                     }}
-                    className="flex flex-col items-center gap-[6px] min-w-[88px] cursor-pointer rounded-[8px] px-3 py-2 transition-colors hover:bg-white"
+                    className="relative flex flex-col items-center gap-[6px] min-w-[88px] cursor-pointer rounded-[8px] px-3 py-2 transition-colors hover:bg-white"
                   >
-                    <img src={a.icon} alt="" className="h-6 w-6" />
+                    {a.id === "graphics" ? (
+                      <>
+                        <img
+                          src={a.icon}
+                          alt=""
+                          className="h-6 w-6"
+                          style={obGfxActive ? {visibility: "hidden"} : undefined}
+                        />
+                        {/* Same hover animation as the left-column graphics button. */}
+                        {obGfxActive && (
+                          <GraphicsHoverIcon
+                            className="pointer-events-none absolute inset-0"
+                            hovered={obHovered === "graphics"}
+                            onReverseDone={() => setObGfxActive(false)}
+                          />
+                        )}
+                      </>
+                    ) : (
+                      <img src={a.icon} alt="" className="h-6 w-6" />
+                    )}
                     <span className="text-[14px] font-semibold text-black">{a.label}</span>
                   </button>
                 ))}
