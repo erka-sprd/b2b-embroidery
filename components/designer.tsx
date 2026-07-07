@@ -28,6 +28,7 @@ import {
 import { FontPanel } from "@/components/ui/font-panel/FontPanel"
 import { useFonts, getFontVariants } from "@/hooks/useFonts"
 import LottieLoader from "@/components/ui/lottie/LottieLoader"
+import GraphicsHoverIcon from "@/components/ui/lottie/GraphicsHoverIcon"
 import { TextColorPanel } from "@/components/ui/text-color-panel/TextColorPanel"
 import { UploadPanel } from "@/components/ui/upload-panel/UploadPanel"
 
@@ -1895,7 +1896,14 @@ export default function Designer() {
                       : "bg-transparent")
                 }
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={hoveredButton === "graphics" ? {visibility: "hidden"} : undefined}
+                >
                   <path
                     fillRule="evenodd"
                     clipRule="evenodd"
@@ -1921,6 +1929,11 @@ export default function Designer() {
                     fill="currentColor"
                   />
                 </svg>
+                {/* On hover, play the graphics Lottie once, overlaid at the
+                    button's size (its artboard matches the button). */}
+                {hoveredButton === "graphics" && (
+                  <GraphicsHoverIcon className="pointer-events-none absolute inset-0" />
+                )}
 
                 {!isDockCompact && (
                   <div className="text-[12px] font-[600] text-black text-center">Graphics</div>
