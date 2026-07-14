@@ -1663,7 +1663,7 @@ export default function Designer() {
     }
     return { width, height: lines.length * fontSize }
   }
-  const MIN_TEXT_FONT_SIZE = 14
+  const MIN_TEXT_FONT_SIZE = 1
   const MIN_GRAPHIC_WIDTH_PCT = 5
   const maxFontSize = useMemo(
     () =>
@@ -2629,7 +2629,7 @@ export default function Designer() {
 
             {/* Zoom control — vertical, bottom-left of the canvas area. Plus on
                 top, minus at the bottom; the WedgeSlider is rotated upright. */}
-            <div className="absolute bottom-6 left-6 z-[5] flex w-[48px] flex-col items-center gap-1 rounded-full bg-white py-2.5 shadow-xs">
+            <div className="absolute bottom-6 left-6 z-[5] flex w-[48px] flex-col items-center gap-1 rounded-full bg-white py-2.5 shadow-xs transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-105">
               <div className="group/tooltip relative flex">
                 <button
                   type="button"
@@ -3207,7 +3207,7 @@ export default function Designer() {
                   >
                     {currentView?.name ?? productData.views[0]?.name}
                   </span>
-                  <div className="relative flex h-[48px] items-center gap-[18px] rounded-full bg-white px-3 shadow-xs">
+                  <div className="relative flex h-[48px] items-center gap-[18px] rounded-full bg-white px-3 shadow-xs transition-transform duration-300 ease-[cubic-bezier(0.34,1.56,0.64,1)] hover:scale-105">
                     {/* Preview popover for the hovered dot — floats 4px above the
                         white pill and shows the view's design composited. */}
                     <div

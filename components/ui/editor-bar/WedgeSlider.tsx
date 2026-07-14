@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 
 type WedgeSliderProps = {
   min: number
@@ -10,14 +10,86 @@ type WedgeSliderProps = {
   width?: number
 }
 
+// Drag-relative slider: pressing the thumb does NOT change the value — only
+// actual pointer movement does. A native <input type="range"> jumps the value to
+// wherever you click (so grabbing the thumb near its edge nudges it), which felt
+// wrong for the zoom handle. Here we track movement from the press point instead.
 export function WedgeSlider({ min, max, value, onChange, width = 140 }: WedgeSliderProps) {
   const [isDragging, setIsDragging] = useState(false)
-  const percentage = Math.round(((value - min) / (max - min)) * 100)
+  const trackRef = useRef<HTMLDivElement>(null)
+  const dragRef = useRef<{
+    start: number
+    vertical: boolean
+    length: number
+    startValue: number
+  } | null>(null)
+
+  const clamp = (v: number) => Math.min(max, Math.max(min, v))
+  const percentage = ((value - min) / (max - min)) * 100
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    const el = trackRef.current
+    if (!el) return
+    el.setPointerCapture(e.pointerId)
+    const rect = el.getBoundingClientRect()
+    // The parent may rotate the slider; the rendered rect tells us the on-screen
+    // orientation so vertical (rotated) sliders map upward drag to higher values.
+    const vertical = rect.height >= rect.width
+    dragRef.current = {
+      start: vertical ? e.clientY : e.clientX,
+      vertical,
+      length: vertical ? rect.height : rect.width,
+      startValue: value,
+    }
+    setIsDragging(true)
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    const d = dragRef.current
+    if (!d || d.length === 0) return
+    const current = d.vertical ? e.clientY : e.clientX
+    const deltaPx = d.vertical ? d.start - current : current - d.start
+    const next = clamp(d.startValue + (deltaPx / d.length) * (max - min))
+    if (next !== value) onChange(next)
+  }
+
+  const endDrag = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (trackRef.current?.hasPointerCapture(e.pointerId)) {
+      trackRef.current.releasePointerCapture(e.pointerId)
+    }
+    dragRef.current = null
+    setIsDragging(false)
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    const step = (max - min) / 20
+    if (e.key === "ArrowUp" || e.key === "ArrowRight") {
+      e.preventDefault()
+      onChange(clamp(value + step))
+    } else if (e.key === "ArrowDown" || e.key === "ArrowLeft") {
+      e.preventDefault()
+      onChange(clamp(value - step))
+    }
+  }
 
   return (
-    <div className="group relative flex h-6 items-center" style={{ minWidth: width, width }}>
+    <div
+      ref={trackRef}
+      role="slider"
+      aria-valuemin={min}
+      aria-valuemax={max}
+      aria-valuenow={value}
+      tabIndex={0}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onKeyDown={handleKeyDown}
+      className="group relative flex h-6 cursor-pointer touch-none items-center outline-none"
+      style={{ minWidth: width, width }}
+    >
       <svg
-        className="absolute"
+        className="pointer-events-none absolute"
         preserveAspectRatio="none"
         xmlns="http://www.w3.org/2000/svg"
         width={width}
@@ -34,39 +106,15 @@ export function WedgeSlider({ min, max, value, onChange, width = 140 }: WedgeSli
         className="pointer-events-none absolute"
         style={{ left: `${percentage}%`, transform: `translateX(-${percentage}%)` }}
       >
-        <div className="h-5 w-5" />
+        <div
+          className={
+            "box-content size-5 rounded-full border-2 border-black bg-white transition-shadow duration-300 " +
+            (isDragging
+              ? "shadow-[0_0_0_6px_rgba(0,0,0,0.1)]"
+              : "group-hover:shadow-[0_0_0_6px_rgba(0,0,0,0.1)]")
+          }
+        />
       </div>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step="any"
-        value={value}
-        onChange={e => onChange(Number(e.target.value))}
-        onMouseDown={() => setIsDragging(true)}
-        onMouseUp={() => setIsDragging(false)}
-        onMouseLeave={() => setIsDragging(false)}
-        onTouchStart={() => setIsDragging(true)}
-        onTouchEnd={() => setIsDragging(false)}
-        className={
-          "absolute m-0 size-full cursor-pointer appearance-none bg-none p-0 outline-none " +
-          "[&::-webkit-slider-thumb]:appearance-none " +
-          "[&::-webkit-slider-thumb]:size-5 [&::-webkit-slider-thumb]:rounded-full " +
-          "[&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-black " +
-          "[&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:cursor-pointer " +
-          "[&::-webkit-slider-thumb]:pointer-events-auto " +
-          "[&::-webkit-slider-thumb]:transition-shadow [&::-webkit-slider-thumb]:duration-300 " +
-          "[&::-moz-range-thumb]:transition-shadow [&::-moz-range-thumb]:duration-300 " +
-          "[&::-moz-range-thumb]:size-5 [&::-moz-range-thumb]:rounded-full " +
-          "[&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-black " +
-          "[&::-moz-range-thumb]:bg-white [&::-moz-range-thumb]:cursor-pointer " +
-          "[&::-webkit-slider-thumb]:hover:shadow-[0_0_0_6px_rgba(0,0,0,0.1)] " +
-          "[&::-moz-range-thumb]:hover:shadow-[0_0_0_6px_rgba(0,0,0,0.1)] " +
-          (isDragging
-            ? "[&::-webkit-slider-thumb]:shadow-[0_0_0_6px_rgba(0,0,0,0.1)] [&::-moz-range-thumb]:shadow-[0_0_0_6px_rgba(0,0,0,0.1)]"
-            : "")
-        }
-      />
     </div>
   )
 }

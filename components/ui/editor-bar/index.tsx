@@ -28,7 +28,7 @@ type EditorBarProps = {
   onDelete?: () => void
 }
 
-const MIN_FONT_SIZE = 14
+const MIN_FONT_SIZE = 1
 const ABS_MAX_FONT_SIZE = 320
 const ALIGN_ORDER: TextAlign[] = ["left", "center", "right"]
 
