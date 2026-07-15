@@ -522,6 +522,9 @@ export default function Designer() {
   // Drag-to-pan the zoomed canvas. Only starts on empty canvas area (an object
   // or resize handle sets its own state first, since mousedown bubbles up).
   const [isPanning, setIsPanning] = useState(false)
+  // True while hovering any of the editing text box's border strips — thickens
+  // ALL four borders together (not just the hovered side).
+  const [textBorderHover, setTextBorderHover] = useState(false)
   const panStateRef = useRef<{ x: number; y: number; left: number; top: number } | null>(null)
   // True once a pan press has actually moved (a drag) — lets us tell a drag from
   // a tap so a drag doesn't deselect / exit text editing on release.
@@ -607,6 +610,11 @@ export default function Designer() {
       window.removeEventListener("mouseup", onUp)
     }
   }, [])
+  // Clear the border-hover state whenever editing ends, so borders don't stay
+  // thick on the next edit.
+  useEffect(() => {
+    if (!editingTextId) setTextBorderHover(false)
+  }, [editingTextId])
   const resizeStateRef = useRef<{
     kind: "text" | "graphic"
     id: string
@@ -2519,9 +2527,10 @@ export default function Designer() {
                               className="pointer-events-auto bg-transparent outline-none leading-none"
                             />
                             {/* Border strips: grab the box edge to move the text while
-                                editing (the centre stays a text caret). */}
+                                editing (the centre stays a text caret). Hovering any
+                                strip thickens ALL four edges to 4px and a bit darker. */}
                             {(["top", "bottom", "left", "right"] as const).map(side => {
-                              const pos =
+                              const hit =
                                 side === "top"
                                   ? "top-0 right-0 left-0 h-[7px]"
                                   : side === "bottom"
@@ -2529,12 +2538,36 @@ export default function Designer() {
                                     : side === "left"
                                       ? "top-0 bottom-0 left-0 w-[7px]"
                                       : "top-0 right-0 bottom-0 w-[7px]"
+                              const horizontal = side === "top" || side === "bottom"
+                              const edge =
+                                side === "top"
+                                  ? "top-0 right-0 left-0"
+                                  : side === "bottom"
+                                    ? "bottom-0 right-0 left-0"
+                                    : side === "left"
+                                      ? "top-0 bottom-0 left-0"
+                                      : "top-0 right-0 bottom-0"
+                              const size = textBorderHover
+                                ? horizontal
+                                  ? "h-1"
+                                  : "w-1"
+                                : horizontal
+                                  ? "h-0"
+                                  : "w-0"
                               return (
                                 <span
                                   key={side}
                                   onMouseDown={e => startTextMove(e, el)}
-                                  className={`absolute ${pos} z-20 cursor-move`}
-                                />
+                                  onMouseEnter={() => setTextBorderHover(true)}
+                                  onMouseLeave={() => setTextBorderHover(false)}
+                                  className={`absolute ${hit} z-20 cursor-move`}
+                                >
+                                  <span
+                                    className={`absolute ${edge} ${size} transition-all duration-200 ease-out ${
+                                      textBorderHover ? "bg-[#4F46E5]" : "bg-[#6366F1]"
+                                    }`}
+                                  />
+                                </span>
                               )
                             })}
                             {/* Resize handles stay available while editing. startResize
