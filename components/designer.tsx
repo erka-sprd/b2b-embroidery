@@ -404,6 +404,8 @@ export default function Designer() {
     color: string
     fontSize: number
     fontFamily: string
+    // Rotation in degrees around the text box centre (default 0).
+    rotation?: number
     textAlign?: "left" | "center" | "right"
     bold?: boolean
     italic?: boolean
@@ -628,6 +630,26 @@ export default function Designer() {
     anchorXPct: number
     anchorYPct: number
   } | null>(null)
+  // Drag-to-rotate a text via the handle below its box. Angles are measured from
+  // the box centre; rotation is stored in degrees on the element.
+  const rotateStateRef = useRef<{
+    id: string
+    cx: number
+    cy: number
+    startAngle: number
+    startRotation: number
+  } | null>(null)
+  const startTextRotate = (e: React.MouseEvent, el: TextElement) => {
+    e.preventDefault()
+    e.stopPropagation()
+    const node = textElementRefs.current[el.id]
+    if (!node) return
+    const rect = node.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const startAngle = (Math.atan2(e.clientY - cy, e.clientX - cx) * 180) / Math.PI
+    rotateStateRef.current = { id: el.id, cx, cy, startAngle, startRotation: el.rotation ?? 0 }
+  }
 
   const addTextElement = () => {
     if (!currentPrintAreaId) return
@@ -923,6 +945,22 @@ export default function Designer() {
   // Document-level mousemove/up so dragging and resizing keep working when cursor leaves the element.
   useEffect(() => {
     const onMove = (e: MouseEvent) => {
+      const rot = rotateStateRef.current
+      if (rot) {
+        setIsManipulating(true)
+        const angle = (Math.atan2(e.clientY - rot.cy, e.clientX - rot.cx) * 180) / Math.PI
+        let next = rot.startRotation + (angle - rot.startAngle)
+        // Snap to 0/90/180/270 (and normalise to -180..180) for easy alignment.
+        next = ((next % 360) + 360) % 360
+        for (const snap of [0, 90, 180, 270, 360]) {
+          if (Math.abs(next - snap) <= 4) next = snap % 360
+        }
+        if (next > 180) next -= 360
+        setTextElements(prev =>
+          prev.map(t => (t.id === rot.id ? { ...t, rotation: Math.round(next) } : t))
+        )
+        return
+      }
       const rs = resizeStateRef.current
       if (rs) {
         setIsManipulating(true)
@@ -1027,6 +1065,12 @@ export default function Designer() {
     }
     const onUp = () => {
       setIsManipulating(false)
+      if (rotateStateRef.current) {
+        rotateStateRef.current = null
+        setEmbroiderySettling(true)
+        suppressNextClick() // don't let the release click deselect the object
+        return
+      }
       if (resizeStateRef.current) {
         resizeStateRef.current = null
         // Resize changed the design — wait for the flatten before revealing.
@@ -1353,7 +1397,7 @@ export default function Designer() {
   // Signature of the current print area's design — drives re-flattening for the
   // on-canvas embroidery preview when text/graphics change.
   const designSignature = JSON.stringify({
-    t: visibleTextElements.map(t => [t.x, t.y, t.z, t.content, t.fontSize, t.fontFamily, t.color, t.textAlign, t.bold, t.italic, t.underline]),
+    t: visibleTextElements.map(t => [t.x, t.y, t.z, t.content, t.fontSize, t.fontFamily, t.color, t.textAlign, t.bold, t.italic, t.underline, t.rotation]),
     g: visibleGraphicElements.map(g => [g.x, g.y, g.z, g.width, g.height, g.src]),
   })
   // Appearance signature, normalized to the design's top-left so a pure
@@ -1375,6 +1419,7 @@ export default function Designer() {
       t.bold,
       t.italic,
       t.underline,
+      t.rotation,
     ]),
     g: visibleGraphicElements.map(g => [
       g.x - designMinX,
@@ -1537,6 +1582,15 @@ export default function Designer() {
           const lineWidths = lines.map(l => ctx.measureText(l).width)
           const blockWidth = Math.max(0, ...lineWidths)
           const align = t.textAlign ?? "left"
+          const rotation = t.rotation ?? 0
+          if (rotation) {
+            const cx = x + blockWidth / 2
+            const cy = y + (lines.length * fontSize) / 2
+            ctx.save()
+            ctx.translate(cx, cy)
+            ctx.rotate((rotation * Math.PI) / 180)
+            ctx.translate(-cx, -cy)
+          }
           lines.forEach((line, i) => {
             const dx =
               align === "center"
@@ -1553,6 +1607,7 @@ export default function Designer() {
             }
             y += fontSize
           })
+          if (rotation) ctx.restore()
         } else {
           const g = item.el
           const img = await loadImage(g.src).catch(() => null)
@@ -1646,6 +1701,15 @@ export default function Designer() {
             const lineWidths = lines.map(l => hctx.measureText(l).width)
             const blockWidth = Math.max(0, ...lineWidths)
             const align = t.textAlign ?? "left"
+            const rotation = t.rotation ?? 0
+            if (rotation) {
+              const cx = x + blockWidth / 2
+              const cy = y + (lines.length * fs) / 2
+              hctx.save()
+              hctx.translate(cx, cy)
+              hctx.rotate((rotation * Math.PI) / 180)
+              hctx.translate(-cx, -cy)
+            }
             lines.forEach((line, i) => {
               const dx =
                 align === "center"
@@ -1662,6 +1726,7 @@ export default function Designer() {
               }
               y += fs
             })
+            if (rotation) hctx.restore()
           }
           for (const g of graphics) {
             const img = await loadImage(g.src).catch(() => null)
@@ -2481,6 +2546,8 @@ export default function Designer() {
                               top: `${el.y}%`,
                               width: `${box.width + 4}px`,
                               height: `${box.height}px`,
+                              transform: `rotate(${el.rotation ?? 0}deg)`,
+                              transformOrigin: "center",
                             }}
                             className="pointer-events-auto"
                           >
@@ -2597,6 +2664,14 @@ export default function Designer() {
                                 />
                               )
                             })}
+                            <span
+                              onMouseDown={e => startTextRotate(e, el)}
+                              className="absolute -bottom-[34px] left-1/2 z-30 flex size-[22px] -translate-x-1/2 cursor-grab items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-sm active:cursor-grabbing"
+                            >
+                              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                                <path fillRule="evenodd" clipRule="evenodd" d="M5.97279 2.70765e-05C8.99188 0.00908166 11.534 2.26003 11.9085 5.25582C12.283 8.25161 10.3731 11.0591 7.44915 11.811C5.1471 12.4029 2.78103 11.5756 1.33347 9.82817L1.33341 11.3069C1.33341 11.6488 1.07605 11.9305 0.744489 11.9691L0.666742 11.9735C0.324851 11.9735 0.0430704 11.7162 0.00456036 11.3846L7.52098e-05 11.3069V7.97354C7.52098e-05 7.63165 0.257435 7.34986 0.588994 7.31135L0.666742 7.30687H4.00008C4.36827 7.30687 4.66674 7.60535 4.66674 7.97354C4.66674 8.31543 4.40938 8.59721 4.07782 8.63572L4.00008 8.6402L2.10646 8.64083C3.19414 10.2276 5.18461 11.0166 7.11708 10.5196C9.39128 9.93483 10.8767 7.75126 10.5855 5.4212C10.2942 3.09114 8.31698 1.3404 5.9688 1.33335C3.62061 1.32635 1.63294 3.06524 1.32775 5.39351C1.2799 5.75858 0.945165 6.01573 0.580098 5.96788C0.215031 5.92003 -0.0421227 5.58529 0.00572962 5.22023C0.398111 2.22673 2.95368 -0.00897306 5.97279 2.70765e-05Z" fill="currentColor"/>
+                              </svg>
+                            </span>
                           </div>
                         )
                       })()
@@ -2631,6 +2706,8 @@ export default function Designer() {
                           // from the absolutely-positioned containing block).
                           width: "max-content",
                           maxWidth: "none",
+                          transform: `rotate(${el.rotation ?? 0}deg)`,
+                          transformOrigin: "center",
                           boxShadow:
                             selectedTextId === el.id ? "0 0 0 1px #6366F1" : undefined,
                         }}
@@ -2659,6 +2736,16 @@ export default function Designer() {
                               />
                             )
                           })}
+                        {selectedTextId === el.id && (
+                          <span
+                            onMouseDown={e => startTextRotate(e, el)}
+                            className="absolute -bottom-[34px] left-1/2 z-30 flex size-[22px] -translate-x-1/2 cursor-grab items-center justify-center rounded-full border border-neutral-300 bg-white text-neutral-700 shadow-sm active:cursor-grabbing"
+                          >
+                            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden="true">
+                              <path fillRule="evenodd" clipRule="evenodd" d="M5.97279 2.70765e-05C8.99188 0.00908166 11.534 2.26003 11.9085 5.25582C12.283 8.25161 10.3731 11.0591 7.44915 11.811C5.1471 12.4029 2.78103 11.5756 1.33347 9.82817L1.33341 11.3069C1.33341 11.6488 1.07605 11.9305 0.744489 11.9691L0.666742 11.9735C0.324851 11.9735 0.0430704 11.7162 0.00456036 11.3846L7.52098e-05 11.3069V7.97354C7.52098e-05 7.63165 0.257435 7.34986 0.588994 7.31135L0.666742 7.30687H4.00008C4.36827 7.30687 4.66674 7.60535 4.66674 7.97354C4.66674 8.31543 4.40938 8.59721 4.07782 8.63572L4.00008 8.6402L2.10646 8.64083C3.19414 10.2276 5.18461 11.0166 7.11708 10.5196C9.39128 9.93483 10.8767 7.75126 10.5855 5.4212C10.2942 3.09114 8.31698 1.3404 5.9688 1.33335C3.62061 1.32635 1.63294 3.06524 1.32775 5.39351C1.2799 5.75858 0.945165 6.01573 0.580098 5.96788C0.215031 5.92003 -0.0421227 5.58529 0.00572962 5.22023C0.398111 2.22673 2.95368 -0.00897306 5.97279 2.70765e-05Z" fill="currentColor"/>
+                            </svg>
+                          </span>
+                        )}
                       </div>
                     )
                   )}
@@ -4261,7 +4348,7 @@ function ViewDesignThumb({
 }: {
   image: string
   overlay: { left: number; top: number; width: number; height: number } | null
-  textElements: { id: string; x: number; y: number; z: number; color: string; fontSize: number; fontFamily: string; content: string }[]
+  textElements: { id: string; x: number; y: number; z: number; color: string; fontSize: number; fontFamily: string; content: string; rotation?: number }[]
   graphicElements: { id: string; x: number; y: number; z: number; width: number; height: number; src: string }[]
   displaySize: number
   size: number
@@ -4311,6 +4398,8 @@ function ViewDesignThumb({
               fontFamily: `"${el.fontFamily}"`,
               whiteSpace: "pre",
               lineHeight: 1,
+              transform: `rotate(${el.rotation ?? 0}deg)`,
+              transformOrigin: "center",
             }}
           >
             {el.content}

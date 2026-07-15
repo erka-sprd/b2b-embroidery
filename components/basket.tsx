@@ -11,6 +11,7 @@ export type BasketDesignText = {
   color: string
   fontSize: number
   fontFamily: string
+  rotation?: number
 }
 
 export type BasketDesignGraphic = {
@@ -302,6 +303,8 @@ function DesignThumbnail({ item, size }: { item: BasketItem; size: number }) {
               fontFamily: `"${el.fontFamily}"`,
               whiteSpace: "pre",
               lineHeight: 1,
+              transform: `rotate(${el.rotation ?? 0}deg)`,
+              transformOrigin: "center",
             }}
           >
             {el.content}
