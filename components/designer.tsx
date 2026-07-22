@@ -34,7 +34,11 @@ import {
 import { FontPanel } from "@/components/ui/font-panel/FontPanel"
 import { useFonts, getFontVariants } from "@/hooks/useFonts"
 import LottieLoader from "@/components/ui/lottie/LottieLoader"
-import GraphicsHoverIcon from "@/components/ui/lottie/GraphicsHoverIcon"
+import DockHoverIcon from "@/components/ui/lottie/DockHoverIcon"
+import aiImageAnim from "@/components/ui/lottie/ai-image.json"
+import graphicsAnim from "@/components/ui/lottie/graphics.json"
+import textAnim from "@/components/ui/lottie/text.json"
+import uploadsAnim from "@/components/ui/lottie/uploads.json"
 import { TextColorPanel } from "@/components/ui/text-color-panel/TextColorPanel"
 import { UploadPanel } from "@/components/ui/upload-panel/UploadPanel"
 
@@ -2055,12 +2059,25 @@ export default function Designer() {
   const rightSectionRef = useRef<HTMLDivElement | null>(null)
 
   const [hoveredButton, setHoveredButton] = useState<string | null>(null)
-  // Keeps the graphics Lottie mounted through hover-out so it can play in
-  // reverse; cleared once that reverse finishes (then the static icon returns).
-  const [gfxActive, setGfxActive] = useState(false)
-  // Same behaviour for the graphics button inside the onboarding popup.
   const [obHovered, setObHovered] = useState<string | null>(null)
-  const [obGfxActive, setObGfxActive] = useState(false)
+
+  // Button id -> its hover animation. Shared by the dock and the onboarding popup.
+  const DOCK_ANIM: Record<string, unknown> = {
+    ai: aiImageAnim,
+    upload: uploadsAnim,
+    text: textAnim,
+    graphics: graphicsAnim,
+  }
+  // Each button's icon Lottie stays mounted from hover-in through the reverse-out
+  // (so it can play backwards), then unmounts once that reverse finishes and the
+  // static icon returns. Keyed by button id, independent per button.
+  const [dockAnimActive, setDockAnimActive] = useState<Record<string, boolean>>({})
+  const [obAnimActive, setObAnimActive] = useState<Record<string, boolean>>({})
+  const setAnimActive = (
+    setter: React.Dispatch<React.SetStateAction<Record<string, boolean>>>,
+    key: string,
+    on: boolean
+  ) => setter(prev => (prev[key] === on ? prev : {...prev, [key]: on}))
 
   useEffect(() => {
     const checkRightSectionHeight = () => {
@@ -2216,7 +2233,10 @@ export default function Designer() {
               <button
                 type="button"
                 disabled={!canDesignOnCurrentView}
-                onMouseEnter={() => setHoveredButton("ai")}
+                onMouseEnter={() => {
+                  setHoveredButton("ai")
+                  setAnimActive(setDockAnimActive, "ai", true)
+                }}
                 onMouseLeave={() => setHoveredButton(null)}
                 onClick={() => togglePanel("ai")}
                 className={
@@ -2232,8 +2252,20 @@ export default function Designer() {
                         : "bg-transparent")
                 }
               >
-                <img src="/icons/icon-sparkles-ai.svg" alt="" className="h-6 w-6" />
-
+                <img
+                  src="/icons/icon-sparkles-ai.svg"
+                  alt=""
+                  className="h-6 w-6"
+                  style={dockAnimActive.ai ? {visibility: "hidden"} : undefined}
+                />
+                {dockAnimActive.ai && (
+                  <DockHoverIcon
+                    className="pointer-events-none absolute inset-0"
+                    hovered={hoveredButton === "ai"}
+                    animationData={aiImageAnim}
+                    onReverseDone={() => setAnimActive(setDockAnimActive, "ai", false)}
+                  />
+                )}
                 {!isDockCompact && (
                   <div className="text-[12px] font-[600] text-black text-center">AI Image</div>
                 )}
@@ -2248,7 +2280,10 @@ export default function Designer() {
               <button
                 type="button"
                 disabled={!canDesignOnCurrentView}
-                onMouseEnter={() => setHoveredButton("upload")}
+                onMouseEnter={() => {
+                  setHoveredButton("upload")
+                  setAnimActive(setDockAnimActive, "upload", true)
+                }}
                 onMouseLeave={() => setHoveredButton(null)}
                 onClick={() => startAdd("uploads")}
                 className={
@@ -2264,7 +2299,14 @@ export default function Designer() {
                         : "bg-transparent")
                 }
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={dockAnimActive.upload ? {visibility: "hidden"} : undefined}
+                >
                   <path
                     d="M9 5C9.55228 5 10 5.44772 10 6C10 6.51284 9.61396 6.93551 9.11662 6.99327L9 7H3C2.44772 7 2 6.55228 2 6C2 5.48716 2.38604 5.06449 2.88338 5.00673L3 5H9Z"
                     fill="black"
@@ -2290,6 +2332,14 @@ export default function Designer() {
                     fill="black"
                   />
                 </svg>
+                {dockAnimActive.upload && (
+                  <DockHoverIcon
+                    className="pointer-events-none absolute inset-0"
+                    hovered={hoveredButton === "upload"}
+                    animationData={uploadsAnim}
+                    onReverseDone={() => setAnimActive(setDockAnimActive, "upload", false)}
+                  />
+                )}
                 {!isDockCompact && (
                   <div className="text-[12px] font-[600] text-black text-center">Uploads</div>
                 )}
@@ -2304,7 +2354,10 @@ export default function Designer() {
               <button
                 type="button"
                 disabled={!canDesignOnCurrentView}
-                onMouseEnter={() => setHoveredButton("text")}
+                onMouseEnter={() => {
+                  setHoveredButton("text")
+                  setAnimActive(setDockAnimActive, "text", true)
+                }}
                 onMouseLeave={() => setHoveredButton(null)}
                 onClick={() => startAdd("text")}
                 className={
@@ -2316,12 +2369,27 @@ export default function Designer() {
                     : "bg-transparent")
                 }
               >
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <svg
+                  width="24"
+                  height="24"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  xmlns="http://www.w3.org/2000/svg"
+                  style={dockAnimActive.text ? {visibility: "hidden"} : undefined}
+                >
                   <path
                     d="M13 3C13.353 3 13.6761 3.18574 13.8555 3.48242L13.916 3.59961L20.6533 19H21C21.5523 19 22 19.4477 22 20C22 20.5128 21.6135 20.9354 21.1162 20.9932L21 21H14C13.4477 21 13 20.5523 13 20C13 19.4872 13.3865 19.0646 13.8838 19.0068L14 19H14.4912L13.2207 16H7.56836L6.44336 19H7C7.55228 19 8 19.4477 8 20C8 20.5128 7.61355 20.9354 7.11621 20.9932L7 21H4C3.44772 21 3 20.5523 3 20C3 19.4872 3.38645 19.0646 3.88379 19.0068L4 19H4.30664L10.0635 3.64844C10.1952 3.29749 10.5106 3.05335 10.876 3.00781L11 3H13ZM11.2432 6.19922L16.6621 19H18.4707L12.3447 5H11.6934L11.2432 6.19922ZM8.31836 14H12.374L10.2227 8.91895L8.31836 14Z"
                     fill="black"
                   />
                 </svg>
+                {dockAnimActive.text && (
+                  <DockHoverIcon
+                    className="pointer-events-none absolute inset-0"
+                    hovered={hoveredButton === "text"}
+                    animationData={textAnim}
+                    onReverseDone={() => setAnimActive(setDockAnimActive, "text", false)}
+                  />
+                )}
                 {!isDockCompact && (
                   <div className="text-[12px] font-[600] text-black text-center">Text</div>
                 )}
@@ -2338,7 +2406,7 @@ export default function Designer() {
                 disabled={!canDesignOnCurrentView}
                 onMouseEnter={() => {
                   setHoveredButton("graphics")
-                  setGfxActive(true) // keep the Lottie alive for the reverse-out
+                  setAnimActive(setDockAnimActive, "graphics", true) // keep Lottie alive for reverse-out
                 }}
                 onMouseLeave={() => setHoveredButton(null)}
                 onClick={() => startAdd("graphics")}
@@ -2361,7 +2429,7 @@ export default function Designer() {
                   viewBox="0 0 24 24"
                   fill="none"
                   xmlns="http://www.w3.org/2000/svg"
-                  style={gfxActive ? {visibility: "hidden"} : undefined}
+                  style={dockAnimActive.graphics ? {visibility: "hidden"} : undefined}
                 >
                   <path
                     fillRule="evenodd"
@@ -2391,11 +2459,12 @@ export default function Designer() {
                 {/* Plays forward once on hover-in and reversed once on hover-out
                     (stays mounted through the exit; artboard matches the button).
                     After the reverse finishes it unmounts -> static icon returns. */}
-                {gfxActive && (
-                  <GraphicsHoverIcon
+                {dockAnimActive.graphics && (
+                  <DockHoverIcon
                     className="pointer-events-none absolute inset-0"
                     hovered={hoveredButton === "graphics"}
-                    onReverseDone={() => setGfxActive(false)}
+                    animationData={graphicsAnim}
+                    onReverseDone={() => setAnimActive(setDockAnimActive, "graphics", false)}
                   />
                 )}
 
@@ -4224,7 +4293,7 @@ export default function Designer() {
                     type="button"
                     onMouseEnter={() => {
                       setObHovered(a.id)
-                      if (a.id === "graphics") setObGfxActive(true)
+                      setAnimActive(setObAnimActive, a.id, true)
                     }}
                     onMouseLeave={() => setObHovered(null)}
                     onClick={() => {
@@ -4241,25 +4310,20 @@ export default function Designer() {
                     }}
                     className="relative flex flex-col items-center gap-[6px] min-w-[88px] cursor-pointer rounded-[8px] px-3 py-2 transition-colors hover:bg-white"
                   >
-                    {a.id === "graphics" ? (
-                      <>
-                        <img
-                          src={a.icon}
-                          alt=""
-                          className="h-6 w-6"
-                          style={obGfxActive ? {visibility: "hidden"} : undefined}
-                        />
-                        {/* Same hover animation as the left-column graphics button. */}
-                        {obGfxActive && (
-                          <GraphicsHoverIcon
-                            className="pointer-events-none absolute inset-0"
-                            hovered={obHovered === "graphics"}
-                            onReverseDone={() => setObGfxActive(false)}
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <img src={a.icon} alt="" className="h-6 w-6" />
+                    <img
+                      src={a.icon}
+                      alt=""
+                      className="h-6 w-6"
+                      style={obAnimActive[a.id] ? {visibility: "hidden"} : undefined}
+                    />
+                    {/* Same hover animation as the left-column dock buttons. */}
+                    {obAnimActive[a.id] && (
+                      <DockHoverIcon
+                        className="pointer-events-none absolute inset-0"
+                        hovered={obHovered === a.id}
+                        animationData={DOCK_ANIM[a.id]}
+                        onReverseDone={() => setAnimActive(setObAnimActive, a.id, false)}
+                      />
                     )}
                     <span className="text-[14px] font-semibold text-black">{a.label}</span>
                   </button>

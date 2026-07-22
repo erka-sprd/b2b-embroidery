@@ -4,9 +4,11 @@ import {useEffect, useRef} from "react"
 // SVG renderer keeps the small icon crisp.
 import lottie, {type AnimationItem} from "lottie-web/build/player/lottie_light"
 
-import animationData from "@/components/ui/lottie/graphics.json"
-
 type Props = {
+    // The Lottie JSON for this dock button (graphics, ai-image, text, uploads).
+    // Its artboard matches the whole button, with the shapes where the static
+    // icon sits, so it's overlaid to fill the button.
+    animationData: unknown
     // Whether the button is currently hovered. On mount / when true it plays
     // forward once; when it flips to false it plays in reverse once and then
     // calls onReverseDone so the parent can swap back to the static icon.
@@ -15,10 +17,10 @@ type Props = {
     className?: string
 }
 
-// The graphics-button icon animation. Its artboard matches the whole button
-// (88x66), with the shapes where the static icon sits, so it's overlaid to fill
-// the button. Plays once forward on hover-in, once reversed on hover-out.
-export default function GraphicsHoverIcon({hovered, onReverseDone, className}: Props) {
+// A dock-button icon animation. Plays once forward on hover-in, once reversed
+// on hover-out. Generic over the animation data so every dock button (graphics,
+// AI image, text, uploads) can share the exact same behaviour.
+export default function DockHoverIcon({animationData, hovered, onReverseDone, className}: Props) {
     const ref = useRef<HTMLDivElement>(null)
     const animRef = useRef<AnimationItem | null>(null)
     const dir = useRef(1)
@@ -44,7 +46,7 @@ export default function GraphicsHoverIcon({hovered, onReverseDone, className}: P
             else doneRef.current?.() // reverse reached the start
         })
         return () => anim.destroy()
-    }, [])
+    }, [animationData])
 
     // Drive playback from hover state (also runs on mount, hovered = true).
     useEffect(() => {
