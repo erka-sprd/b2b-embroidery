@@ -49,20 +49,37 @@ const OPTIONS: ContactOption[] = [
 export default function HelpMenu({ variant = "label" }: { variant?: "label" | "icon" }) {
     const [open, setOpen] = useState(false)
     const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+    const openedAt = useRef(0)
+
+    // Record when the menu opens so we can ignore the toggle-close click for a
+    // grace period (see guardClick).
+    const changeOpen = (next: boolean) => {
+        if (next && !open) openedAt.current = Date.now()
+        setOpen(next)
+    }
 
     // Open on hover too (Radix is click-only by default). A short close delay
     // bridges the gap between the trigger and the menu so it doesn't flicker shut.
     const hoverOpen = () => {
         if (closeTimer.current) clearTimeout(closeTimer.current)
-        setOpen(true)
+        changeOpen(true)
     }
     const hoverClose = () => {
         if (closeTimer.current) clearTimeout(closeTimer.current)
         closeTimer.current = setTimeout(() => setOpen(false), 150)
     }
 
+    // Hover already opened it — swallow the toggle-close interactions for the
+    // first second so a natural hover-then-click doesn't dismiss it immediately.
+    // After that, clicking closes it as usual. Radix closes via the trigger's
+    // pointer-down AND via the content's outside-interaction, so guard both.
+    const inGrace = () => open && Date.now() - openedAt.current < 1000
+    const guardEvent = (e: { preventDefault: () => void }) => {
+        if (inGrace()) e.preventDefault()
+    }
+
     return (
-        <DropdownMenu open={open} onOpenChange={setOpen}>
+        <DropdownMenu open={open} onOpenChange={changeOpen} modal={false}>
             <DropdownMenuTrigger asChild>
                 {variant === "icon" ? (
                     <button
@@ -70,16 +87,18 @@ export default function HelpMenu({ variant = "label" }: { variant?: "label" | "i
                         aria-label="Contact"
                         onMouseEnter={hoverOpen}
                         onMouseLeave={hoverClose}
-                        className="group flex cursor-pointer items-center gap-1 rounded-l-full px-3.5 py-3 text-black outline-none transition-colors hover:bg-white data-[state=open]:bg-white"
+                        onPointerDown={guardEvent}
+                        className="group flex cursor-pointer items-center gap-1 rounded-l-full px-3.5 py-3 text-neutral-700 outline-none transition-colors hover:bg-white hover:text-black data-[state=open]:bg-white"
                     >
                         <Phone className="size-[22px]" strokeWidth={1.8} />
-                        <ChevronDown className="h-4 w-4 text-black transition-transform duration-200 group-data-[state=open]:rotate-180" />
+                        <ChevronDown className="h-4 w-4 text-neutral-700 transition-[transform,color] duration-200 group-hover:text-black group-data-[state=open]:rotate-180" />
                     </button>
                 ) : (
                     <button
                         type="button"
                         onMouseEnter={hoverOpen}
                         onMouseLeave={hoverClose}
+                        onPointerDown={guardEvent}
                         className="group flex cursor-pointer items-center gap-1 rounded-md px-2 py-1.5 text-[14px] font-medium text-black outline-none transition-colors hover:bg-neutral-100"
                     >
                         Contact
@@ -93,16 +112,17 @@ export default function HelpMenu({ variant = "label" }: { variant?: "label" | "i
                 onMouseEnter={hoverOpen}
                 onMouseLeave={hoverClose}
                 onCloseAutoFocus={e => e.preventDefault()}
+                onInteractOutside={guardEvent}
                 className="w-56 overflow-hidden rounded-[12px] border-0 bg-white px-0 py-2 text-[14px] text-black shadow-lg"
             >
                 {OPTIONS.map(o => (
                     <DropdownMenuItem
                         key={o.label}
                         asChild
-                        className={`cursor-pointer gap-3 rounded-none px-4 py-3 text-[14px] hover:bg-neutral-100 focus:bg-neutral-100 ${o.sub ? "items-start" : ""}`}
+                        className={`group cursor-pointer gap-3 rounded-none px-4 py-3 text-[14px] hover:bg-neutral-100 focus:bg-neutral-100 ${o.sub ? "items-start" : ""}`}
                     >
                         <a href={o.href}>
-                            <o.Icon className="size-[20px] shrink-0 text-black" />
+                            <o.Icon className="size-[20px] shrink-0 text-neutral-700 transition-colors group-hover:text-black" />
                             <span className="flex flex-col leading-tight">
                                 <span>{o.label}</span>
                                 {o.sub && (
